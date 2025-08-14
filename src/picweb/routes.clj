@@ -2,7 +2,8 @@
     (:require [ring.util.response :as ring]
                 [clojure.string :as str]
               [picweb.html :refer [contact-page pic-page get-pic
-                                   get-thumb-pic get-css update-tags update-grid]]
+                                   get-thumb-pic get-css update-tags update-grid
+                                   get-prev get-next]]
               [compojure.core :refer :all]
               [compojure.coercions :refer :all]
               [clojure.pprint :as pp]))
@@ -40,6 +41,12 @@
                      (get-num request :num_per_page)
                      (:remote-addr request)))
 
-    (GET "/css/style.css" []
+           (GET "/prev/:num" request
+               (get-prev (get-num request :uri)))
+
+           (GET "/next/:num" request
+               (get-next (get-num request :uri)))
+
+           (GET "/css/style.css" []
             (get-css))
     )

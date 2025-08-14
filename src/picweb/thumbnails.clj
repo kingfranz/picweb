@@ -40,6 +40,20 @@
         ;(println "get-pic-tags: " id "->" res)
         res))
 
+(defn get-prev-thumb
+    [id]
+    (let [prev (jdbc/execute-one! ds-opts ["SELECT * FROM thumbnails WHERE id < ? ORDER BY id DESC LIMIT 1" id])]
+        (if (empty? prev)
+            nil
+            prev)))
+
+(defn get-next-thumb
+    [id]
+    (let [next (jdbc/execute-one! ds-opts ["SELECT * FROM thumbnails WHERE id > ? ORDER BY id ASC LIMIT 1" id])]
+        (if (empty? next)
+            nil
+            next)))
+
 (defn get-tag
     [tag-id]
     (let [sql "SELECT * FROM tags WHERE tag_id = ?"

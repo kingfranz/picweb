@@ -47,47 +47,46 @@
           pics (get-thumbs offset num-thumbs)]
         (if (empty? pics)
             [:div "No pictures found."]
-            (let [tags (get-all-tags)]
-                (page/html5
-                    [:head
-                     [:title "Contact Sheet"]
-                     [:link {:rel "stylesheet" :href "/css/style.css"}]]
-                    [:body
-                     [:h1 "Contact Sheet"]
-                     (hf/form-to
-                         [:post (str "/gridupdate/" offset)]
-                         [:span
-                          [:label "Pictures per page: "
-                          (hf/text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
-                          (hf/submit-button {:class "submit"} "Update")])
-                     (contact-sheet pics)
-                     [:div.pagination1
-                      (when (> offset 0)
-                          (let [pre-pages (int (/ offset num-thumbs))]
-                              (if (> pre-pages 10)
-                                  [:span.pagination
-                                   (for [i (range 0 3)]
-                                       [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])
-                                   [:span.pagination "..."]
-                                   (for [i (range (- pre-pages 3) pre-pages)]
-                                       [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])]
-                                  (for [i (range 0 pre-pages)]
-                                      [:a.pagination {:href (str "/offset/" (* i num-thumbs))}
-                                       (str " " i " ")]))))
-                      [:span.pagination " This page "]
-                      (let [post-pages (int (/ (- (get-num-thumbs) offset) num-thumbs))]
-                          (if (> post-pages 10)
+            (page/html5
+                [:head
+                 [:title "Contact Sheet"]
+                 [:link {:rel "stylesheet" :href "/css/style.css"}]]
+                [:body
+                 [:h1 "Contact Sheet"]
+                 (hf/form-to
+                     [:post (str "/gridupdate/" offset)]
+                     [:span
+                      [:label "Pictures per page: "
+                      (hf/text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
+                      (hf/submit-button {:class "submit"} "Update")])
+                 (contact-sheet pics)
+                 [:div.pagination1
+                  (when (> offset 0)
+                      (let [pre-pages (int (/ offset num-thumbs))]
+                          (if (> pre-pages 10)
                               [:span.pagination
-                               (for [i (range 1 4)]
-                                   [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
-                                    (str " " (+ (int (/ offset num-thumbs)) i) " ")])
-                               [:span.pagination " ... "]
-                               (for [i (range (- post-pages 3) post-pages)]
-                                   [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
-                                    (str " " (+ (int (/ offset num-thumbs)) i) " ")])]
-                              (for [i (range 0 post-pages)]
-                                  [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
-                                   (str " " (+ (int (/ offset num-thumbs)) i) " ")])))]])))))
+                               (for [i (range 0 3)]
+                                   [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])
+                               [:span.pagination "..."]
+                               (for [i (range (- pre-pages 3) pre-pages)]
+                                   [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])]
+                              (for [i (range 0 pre-pages)]
+                                  [:a.pagination {:href (str "/offset/" (* i num-thumbs))}
+                                   (str " " i " ")]))))
+                  [:span.pagination " This page "]
+                  (let [post-pages (int (/ (- (get-num-thumbs) offset) num-thumbs))]
+                      (if (> post-pages 10)
+                          [:span.pagination
+                           (for [i (range 1 4)]
+                               [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
+                                (str " " (+ (int (/ offset num-thumbs)) i) " ")])
+                           [:span.pagination " ... "]
+                           (for [i (range (- post-pages 3) post-pages)]
+                               [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
+                                (str " " (+ (int (/ offset num-thumbs)) i) " ")])]
+                          (for [i (range 0 post-pages)]
+                              [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
+                               (str " " (+ (int (/ offset num-thumbs)) i) " ")])))]]))))
 
 ;;---------------------------------------------------------------------------
 
@@ -141,7 +140,6 @@
 
                          [:p]
                          [:span.rating
-                          [:label.rating "Rating: "]
                           (hf/drop-down {:class "rating"} :rating
                                         [["no-id" "No rating"]
                                          ["Delete it!" "1"]
@@ -153,6 +151,9 @@
                                             (str (:rating pic))
                                             "no-id"))
                           ]
+                         [:span.pagination
+                          [:a.pagination {:href (str "/prev/" pic-id)} "Previous"]
+                          [:a.pagination {:href (str "/next/" pic-id)} "Next"]]
                          [:p]
                          (hf/submit-button {:class "submit"} "Update!"))
                      [:div.back-link
@@ -251,3 +252,16 @@
 
 ;;---------------------------------------------------------------------------
 
+(defn get-prev
+    [pic-id]
+    (let [prev (get-prev-thumb pic-id)]
+        (if (empty? prev)
+            (ring/response "No previous picture.")
+            (ring/redirect (str "/pic/" (:id prev))))))
+
+(defn get-next
+    [pic-id]
+    (let [next (get-next-thumb pic-id)]
+        (if (empty? next)
+            (ring/response "No next picture.")
+            (ring/redirect (str "/pic/" (:id next))))))
