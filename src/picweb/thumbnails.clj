@@ -69,6 +69,13 @@
                         nil)))
             nil)))
 
+(defn assoc-tag
+    [pic-id tag-id]
+    (let [res (insert :tag_m2m {:id pic-id, :tag_id tag-id})]
+        (if (some? res)
+            {:status :success}
+            {:status :error :message "Failed to assoc tag"})))
+
 (defn remove-tag
     [pic-id tag-id]
     (let [sql-m2m "DELETE FROM tag_m2m WHERE id = ? AND tag_id = ?"
@@ -102,4 +109,19 @@
         (first (vals res))))
 
 ;;-----------------------------------------------------------------------------
+
+(defn get-grid
+    [id]
+    (let [sql (str "SELECT num_per_page FROM grid WHERE id = ?")
+          res (jdbc/execute-one! ds-opts [sql id])]
+        (if (nil? res)
+            25 ; default grid
+            (:num_per_page res))))
+
+(defn save-grid
+    [id num-pics]
+    (let [num (get-grid id)]
+        (if (or (nil? num) (not= num num-pics))
+            (sql/insert! ds-opts :grid {:id id, :num_per_page num-pics})
+            (sql/update! ds-opts :grid {:num_per_page num-pics} {:id id}))))
 

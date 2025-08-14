@@ -4,7 +4,7 @@
               [picweb.html :refer [four-oh-four]]
               [picweb.routes :refer [app-routes]]
               [picweb.store :refer :all]
-              [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
+              ;[ring.middleware.defaults :refer [wrap-defaults site-defaults]]
               [ring.middleware.cookies :refer [wrap-cookies]]
               [ring.middleware.keyword-params :refer [wrap-keyword-params]]
               [ring.middleware.params :refer [wrap-params]]
@@ -18,8 +18,8 @@
 (defn- trace-call
     [handler]
     (fn [request]
-        (println "Incoming:")
-        (pp/pprint request)
+       ; (println "Incoming:")
+       ; (pp/pprint request)
         (let [ret (handler request)]
             ret)))
 
@@ -38,7 +38,7 @@
         (wrap-cookies)
         (wrap-stacktrace)
         (trace-call)
-        (wrap-defaults site-defaults)
+        ;(wrap-defaults site-defaults)
         (run-server {:port 4559})
         )
     (println "PicWeb is running!"))

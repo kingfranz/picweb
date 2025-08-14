@@ -1,10 +1,11 @@
 (ns picweb.html
-    (:require [clojure.string :as str]
+    (:require [clojure.pprint :as pp]
+              [clojure.set :as set]
+              [clojure.string :as str]
               [hiccup.form :as hf]
               [hiccup.page :as page]
               [picweb.thumbnails :refer :all]
-              [ring.util.response :as ring]
-              [ring.middleware.cookies :as cookies]))
+              [ring.util.response :as ring]))
 
 ;;---------------------------------------------------------------------------
 
@@ -25,19 +26,24 @@
 ;;---------------------------------------------------------------------------
 
 (defn contact-sheet
-    [thumbs tags offset num-cols num-rows]
+    [thumbs]
     [:div.contact-sheet
      (for [thumb thumbs]
-         ;         (println "contact-sheet: " (:id thumb))
-         [:div.contact-image
+         [:figure.contact-image
           [:a {:href (str "/pic/" (:id thumb))} [:img {:src (str "/thumb/" (:id thumb))}]]
+          [:figcaption.contact-text (subs (:timestr thumb) 0 10)]
           ])])
 
+(defn clamp
+    [n min-val max-val]
+    (cond
+        (< n min-val) min-val
+        (> n max-val) max-val
+        :else n))
+
 (defn contact-page
-    [cookie offset]
-    (let [col-per-page (if (some? (:col cookie)) (Integer/parseInt (:col cookie)) 4)
-          rows-per-page (if (some? (:row cookie)) (Integer/parseInt (:row cookie)) 3)
-          num-thumbs (* col-per-page rows-per-page)
+    [offset remote-addr]
+    (let [num-thumbs (get-grid remote-addr)
           pics (get-thumbs offset num-thumbs)]
         (if (empty? pics)
             [:div "No pictures found."]
@@ -49,46 +55,59 @@
                     [:body
                      [:h1 "Contact Sheet"]
                      (hf/form-to
-                         [:post (str "/cookieupd/" offset)]
-                     [:span
-                      [:label "Columns: "]
-                      (hf/text-field {:size 2 :maxlength 2} :col col-per-page)
-                      [:label "Rows: "]
-                      (hf/text-field {:size 2 :maxlength 2} :rows rows-per-page)
-                      (hf/submit-button {:class "submit"} "Update")])
-                     (contact-sheet pics tags offset col-per-page rows-per-page)
-                     [:div.pagination
+                         [:post (str "/gridupdate/" offset)]
+                         [:span
+                          [:label "Pictures per page: "
+                          (hf/text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
+                          (hf/submit-button {:class "submit"} "Update")])
+                     (contact-sheet pics)
+                     [:div.pagination1
                       (when (> offset 0)
-                          [:a {:href (str "/offset/" (- offset num-thumbs))} "Previous"])
-                      [:span.page-info (str "Page " (inc (/ offset num-thumbs)))]
-                      (when (< (+ offset num-thumbs) (get-num-thumbs))
-                          [:a {:href (str "/offset/" (+ offset num-thumbs))} "Next"])]])))))
+                          (let [pre-pages (int (/ offset num-thumbs))]
+                              (if (> pre-pages 10)
+                                  [:span.pagination
+                                   (for [i (range 0 3)]
+                                       [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])
+                                   [:span.pagination "..."]
+                                   (for [i (range (- pre-pages 3) pre-pages)]
+                                       [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])]
+                                  (for [i (range 0 pre-pages)]
+                                      [:a.pagination {:href (str "/offset/" (* i num-thumbs))}
+                                       (str " " i " ")]))))
+                      [:span.pagination " This page "]
+                      (let [post-pages (int (/ (- (get-num-thumbs) offset) num-thumbs))]
+                          (if (> post-pages 10)
+                              [:span.pagination
+                               (for [i (range 1 4)]
+                                   [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
+                                    (str " " (+ (int (/ offset num-thumbs)) i) " ")])
+                               [:span.pagination " ... "]
+                               (for [i (range (- post-pages 3) post-pages)]
+                                   [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
+                                    (str " " (+ (int (/ offset num-thumbs)) i) " ")])]
+                              (for [i (range 0 post-pages)]
+                                  [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
+                                   (str " " (+ (int (/ offset num-thumbs)) i) " ")])))]])))))
 
 ;;---------------------------------------------------------------------------
 
-(defn update-cookie
-    [cookie offset col rows]
-        (if (and (some? col) (some? rows))
-;            (do
-                (-> (ring/redirect (str "/offset/" offset) 303)
-                    (assoc-in [:cookies "col" :value](str col))
-                    (assoc-in [:cookies "row" :value] (str rows)))
-                ;(ring/set-cookie request "col" col)
-                ;(ring/set-cookie request "row" rows)
-                ;(assoc (ring/redirect (str "/offset/" offset) 303)
-                ;    :headers {:cookies {"col" col "row" rows}}))
-            (ring/response "Invalid parameters.")))
+(defn update-grid
+    [offset num-pics remote-addr]
+    (if (some? num-pics)
+        (do
+            (save-grid remote-addr num-pics)
+            (ring/redirect (str "/offset/" offset) 303))
+        (ring/response "Invalid parameters.")))
 
 ;;---------------------------------------------------------------------------
 
 (defn pic-page
-    [cookie pic-id]
+    [pic-id]
     (let [pic (get-thumb pic-id)]
         (if (empty? pic)
             [:div "Picture not found."]
             (let [all-tags (get-all-tags)
-                  pic-tags (map :tag_id (get-pic-tags pic-id))
-                  xxx (println pic)]
+                  pic-tags (map :tag_id (get-pic-tags pic-id))]
                 (page/html5
                     [:head
                      [:title "Picture Details"]
@@ -114,25 +133,25 @@
                               [:span.tags
                                [:label.tags (:name tag)]
                                (hf/check-box {:class "tags"}
-                                   (str "tag_" (:name tag))
-                                   (some #(= (:tag_id tag) %) pic-tags))])
+                                             (str "tag_" (:name tag))
+                                             (some #(= (:tag_id tag) %) pic-tags))])
                           (hf/text-field {:type "hidden" :value pic-id} "pic-id")
                           [:label "Add a new tag:"]
                           (hf/text-field {:type "text" :value ""} "new")]
 
                          [:p]
                          [:span.rating
-                         [:label.rating "Rating: "]
-                         (hf/drop-down {:class "rating"} :rating
-                                       [["no-id" "No rating"]
-                                        ["Delete it!" "1"]
-                                        ["Move it" "2"]
-                                        ["Not great" "3"]
-                                        ["Average" "4"]
-                                        ["Great" "5"]]
+                          [:label.rating "Rating: "]
+                          (hf/drop-down {:class "rating"} :rating
+                                        [["no-id" "No rating"]
+                                         ["Delete it!" "1"]
+                                         ["Move it" "2"]
+                                         ["Not great" "3"]
+                                         ["Average" "4"]
+                                         ["Great" "5"]]
                                         (if (:rating pic)
-                                             (str (:rating pic))
-                                             "no-id"))
+                                            (str (:rating pic))
+                                            "no-id"))
                           ]
                          [:p]
                          (hf/submit-button {:class "submit"} "Update!"))
@@ -142,7 +161,7 @@
 ;;---------------------------------------------------------------------------
 
 (defn get-pic
-    [cookie pic-id]
+    [pic-id]
     (let [pic (get-thumb pic-id)]
         (if (empty? pic)
             (ring/response "Picture not found.")
@@ -151,7 +170,7 @@
                                     {:headers {"Content-Type" "image/jpeg"}})))))
 
 (defn get-thumb-pic
-    [cookie pic-id]
+    [pic-id]
     (let [pic (get-thumb pic-id)]
         (if (empty? pic)
             (ring/response "Picture not found.")
@@ -160,25 +179,45 @@
                                     {:headers {"Content-Type" "image/jpeg"}})))))
 
 (defn get-css
-    [cookie]
+    []
     (ring/file-response "/home/soren/Linux/clojure/picweb/resources/public/css/style.css"
                         {:headers {"Content-Type" "text/css"}}))
 
 ;;---------------------------------------------------------------------------
 
+(defn check-name
+    [x]
+    (let [nn (name x)
+          ss (str/starts-with? nn "tag_")]
+        (println "" nn "->" ss)
+        ss))
+
+(defn checked-tags
+    [params]
+    (let [ttt (->> params
+                   (keys)
+                   (filter #(check-name %))
+                   (map #(subs (name %) 4))
+                   (map str/lower-case)
+                   (map #(find-tag-id %))
+                   (remove nil?))]
+        ttt))
+
 (defn update-tags
-    [cookie pic-id new-tag params]
+    [pic-id new-tag params]
     (try
-        (let [tags (filter #(str/starts-with? % "tag_") (keys params))
-              pic-tags (get-pic-tags pic-id)]
+        (let [tag-ids (set (checked-tags params))
+              pic-tag-ids (set (map :tag_id (get-pic-tags pic-id)))
+              ; Remove tags that are not in the current pic
+              to-remove (set/difference pic-tag-ids tag-ids)
+              to-add (set/difference tag-ids pic-tag-ids)]
             ; check existing tags
-            (doseq [tag tags]
-                (let [tag-id (get-in params [tag])]
-                    (if (and (not (empty? tag-id)) (not= tag-id "no-id"))
-                        (save-tag pic-id tag-id)
-                        (remove-tag pic-id tag-id))))
+            (doseq [tag-id to-remove]
+                (remove-tag pic-id tag-id))
+            (doseq [tag-id to-add]
+                (assoc-tag pic-id tag-id))
             ; check new tag
-            (when (not (empty? new-tag))
+            (when (some? new-tag)
                 (when-not (save-tag pic-id (str/lower-case new-tag))
                     (ring/response "Failed to save new tag.")))
             ; check rating
@@ -193,9 +232,10 @@
                                 (ring/redirect (str "/pic/" pic-id)))
                             (ring/response "Invalid rating value."))))))
 
-            (catch Exception e
-                (println "Error updating tags:" (.getMessage e))
-                (ring/response "Error updating tags."))))
+        (catch Exception e
+            (println "Error updating tags:" (.getMessage e))
+            (println "Stack trace:" (with-out-str (pp/pprint (.getStackTrace e))))
+            (ring/response "Error updating tags."))))
 
 ;;---------------------------------------------------------------------------
 

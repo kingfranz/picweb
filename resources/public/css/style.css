@@ -1,0 +1,155 @@
+/* File: style.css */
+
+/* General styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f9f9f9;
+    color: #333;
+}
+
+h1 {
+    text-align: center;
+    color: #444;
+}
+
+a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Contact sheet styles */
+.contact-sheet {
+    display: grid;
+    grid-template-rows: 180px;
+    grid-auto-rows: 180px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    /*grid-template-columns: repeat(4, 1fr);*/
+    gap: 16px;
+    padding: 20px;
+}
+
+figure.contact-image {
+    vertical-align: top;
+    display: inline-block;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 5px;
+    width: 150px;
+    height: 150px;
+}
+
+figcaption.contact-text {
+    vertical-align: top;
+    display: inline-block;
+    text-align: center;
+    padding: 5px;
+    width: 150px;
+}
+
+/*
+.thumb img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    width: 150px;
+    height: 150px;
+}
+*/
+.tags {
+    display: inline-block;
+    background-color: #e0e0e0;
+    color: #555;
+    padding: 2px 6px;
+    margin: 2px;
+    border-radius: 3px;
+    font-size: 20px;
+    font-size: 20px;
+}
+
+.rating {
+    display: inline-block;
+    background-color: #e0e0e0;
+    color: #555;
+    padding: 2px 6px;
+    margin: 2px;
+    border-radius: 3px;
+    font-size: 30px;
+}
+
+
+/* Pagination styles */
+div.pagination1 {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    width: 100%;
+    font-size: 25px;
+    display: flex;
+    justify-content: center;
+}
+
+span.pagination1 {
+   /* text-align: center;
+    margin: auto;
+    display: inline-block;*/
+}
+
+a.pagination {
+    margin: 0px;
+    border: 1px solid #ddd;
+    padding: 10px 15px;
+    border-radius: 4px;
+    /*text-align: center;
+    margin: auto;
+    display: inline-block;*/
+}
+
+/* Picture details styles */
+.pic-details-table {
+    text-align: center;
+    width: 100%;
+}
+
+.pic-details-td {
+    text-align: center;
+    width: 50%
+}
+
+.pic-details-tr {
+    text-align: center;
+    width: 100%
+}
+
+.pic-image {
+    max-width: 80%;
+    height: auto;
+    margin: auto;
+}
+
+.submit {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.back-link {
+    display: inline-block;
+    margin-top: 30px;
+    text-decoration: none;
+    font-size: 25px;
+    color: #007bff;
+}
