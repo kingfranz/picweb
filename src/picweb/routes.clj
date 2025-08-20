@@ -1,12 +1,11 @@
 (ns picweb.routes
-    (:require [ring.util.response :as ring]
-                [clojure.string :as str]
-              [picweb.html :refer [contact-page pic-page get-pic
-                                   get-thumb-pic get-css update-tags update-grid
-                                   get-prev get-next]]
-              [compojure.core :refer :all]
+    (:require [clojure.string :as str]
               [compojure.coercions :refer :all]
-              [clojure.pprint :as pp]))
+              [compojure.core :refer :all]
+              [picweb.html :refer [get-css get-next sheet-at
+                                   get-pic get-prev get-thumb-pic
+                                   pic-page update-tags rotate-left rotate-right]]
+              [picweb.sheet :refer [contact-page update-grid]]))
 
 (defn get-num
     [req k]
@@ -17,29 +16,33 @@
             nil)))
 
 (defroutes app-routes
-    (GET "/" request
-            (contact-page 0 (:remote-addr request)))
+           (GET "/" request
+               (contact-page 0 (:remote-addr request)))
 
-    (GET "/offset/:num" request
-            (contact-page (get-num request :uri)
-                          (:remote-addr request)))
+           (GET "/offset/:num" request
+               (contact-page (get-num request :uri)
+                             (:remote-addr request)))
 
-    (GET "/pic/:num" request
-            (pic-page (get-num request :uri)))
+           (GET "/sheetat/:num" request
+               (sheet-at (get-num request :uri)
+                             (:remote-addr request)))
 
-    (GET "/picture/:num" request
-            (get-pic (get-num request :uri)))
+           (GET "/pic/:num" request
+               (pic-page (get-num request :uri)))
 
-    (GET "/thumb/:num" request
-            (get-thumb-pic (get-num request :uri)))
+           (GET "/picture/:num" request
+               (get-pic (get-num request :uri)))
 
-    (POST "/tagupdate" [pic-id :<< as-int, new & params]
-             (update-tags pic-id new params))
+           (GET "/thumb/:num" request
+               (get-thumb-pic (get-num request :uri)))
 
-    (POST "/gridupdate/:num" request
-        (update-grid (get-num request :uri)
-                     (get-num request :num_per_page)
-                     (:remote-addr request)))
+           (POST "/tagupdate" [pic-id :<< as-int, new & params]
+               (update-tags pic-id new params))
+
+           (POST "/gridupdate/:num" request
+               (update-grid (get-num request :uri)
+                            (get-num request :num_per_page)
+                            (:remote-addr request)))
 
            (GET "/prev/:num" request
                (get-prev (get-num request :uri)))
@@ -47,6 +50,12 @@
            (GET "/next/:num" request
                (get-next (get-num request :uri)))
 
+           (GET "/rotate-left/:num" request
+               (rotate-left (get-num request :uri)))
+
+           (GET "/rotate-right/:num" request
+               (rotate-right (get-num request :uri)))
+
            (GET "/css/style.css" []
-            (get-css))
-    )
+               (get-css))
+           )

@@ -5,7 +5,7 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f9f9f9;
+    background-color: #2b2831;
     color: #333;
 }
 
@@ -65,21 +65,19 @@ figcaption.contact-text {
 */
 .tags {
     display: inline-block;
-    background-color: #e0e0e0;
-    color: #555;
+    background-color: #2b2831;
+    color: white;
     padding: 2px 6px;
     margin: 2px;
     border-radius: 3px;
-    font-size: 20px;
     font-size: 20px;
 }
 
 .rating {
     display: inline-block;
-    background-color: #e0e0e0;
-    color: #555;
-    padding: 2px 6px;
-    margin: 2px;
+    background-color: #2b2831;
+    color: #ffffff;
+    padding: 5px 20px 5px 20px;
     border-radius: 3px;
     font-size: 30px;
 }
@@ -136,10 +134,37 @@ a.pagination {
     margin: auto;
 }
 
-.submit {
+.wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  font-size: 25px;
+  margin-top: 10px;
+  margin-bottom: 5px;
+}
+
+div.rotate {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 20px;
+}
+
+href.rotate {
     display: inline-block;
     padding: 10px 20px;
     background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 30px;
+}
+
+.submit {
+    display: inline-block;
+    padding: 10px 20px 10px 20px;
+    background-color: #808080;
     color: white;
     border: none;
     border-radius: 4px;
@@ -148,7 +173,7 @@ a.pagination {
 
 .back-link {
     display: inline-block;
-    margin-top: 30px;
+    /*margin-top: 30px;*/
     text-decoration: none;
     font-size: 25px;
     color: #007bff;

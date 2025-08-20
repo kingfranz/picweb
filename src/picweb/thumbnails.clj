@@ -1,12 +1,7 @@
 (ns picweb.thumbnails
     (:require [next.jdbc :as jdbc]
               [next.jdbc.result-set :as rs]
-              [next.jdbc.sql :as sql]
-              [clojure.string :as str]
-              [clojure.pprint :refer [pprint]]
-              [hiccup.core :as hiccup]
-              [hiccup.page :as page]
-              [hiccup.element :as element]))
+              [next.jdbc.sql :as sql]))
 
 (def db {:dbtype "sqlite" :dbname "pictures.sqlite3"})
 (def ds (jdbc/get-datasource db))
@@ -25,6 +20,19 @@
             (println "Error inserting into table:" table "with data:" data)
             (println "Exception:" (.getMessage e))
             nil)))
+
+(defn update-thumb
+    [id data]
+    (try
+        (let [res (sql/update! ds-opts :thumbnails data {:id id})]
+            (if (empty? res)
+                nil
+                (first (vals res))))
+        (catch Exception e
+            (println "Error updating thumbnail with ID:" id "and data:" data)
+            (println "Exception:" (.getMessage e))
+            nil)))
+
 
 (defn get-all-tags
     []
@@ -121,6 +129,12 @@
     (let [sql (str "SELECT count(*) FROM thumbnails")
           res (jdbc/execute-one! ds-opts [sql])]
         (first (vals res))))
+
+(defn get-all-thumb-ids
+    []
+    (let [sql (str "SELECT id FROM thumbnails ORDER BY timestr ASC")
+          res (jdbc/execute! ds-opts [sql])]
+        (map :id res)))
 
 ;;-----------------------------------------------------------------------------
 
