@@ -7,12 +7,9 @@
               [hiccup.page :as page]
               [picweb.thumbnails :refer :all]
               [ring.util.response :as ring])
-    (:import (java.io File)
-             (java.nio.file Files)))
+    )
 
 ;;---------------------------------------------------------------------------
-
-(def ing-root "/mnt/backup/final/")
 
 (defn- split-ext
     [filename]
@@ -44,8 +41,6 @@
          [:label "Add a new tag:"]
          [:input {:type "text" :name "new" :id "new" :class "tags"
                   :placeholder "New tag (lowercase)"}]
-
-         ;(hf/text-field {:class "tags" :type "text" :value ""} "new")
          ]
 
         [:p]
@@ -170,7 +165,7 @@
     (let [pic (get-thumb pic-id)]
         (if (empty? pic)
             (ring/response "Picture not found.")
-            (let [img-path (str (:path pic) "/" (:filename pic))]
+            (do
                 (rotate-image pic pic-id 90)
                 (ring/redirect (str "/pic/" pic-id))))))
 
