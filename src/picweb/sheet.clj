@@ -24,6 +24,49 @@
         (> n max-val) max-val
         :else n))
 
+(defn- grid-form
+    [offset num-thumbs]
+(hf/form-to
+    [:post (str "/gridupdate/" offset)]
+    [:span
+     [:label "Pictures per page: "
+      (hf/text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
+     (hf/submit-button {:class "submit"} "Update")]))
+
+(defn- pagination
+    [offset num-thumbs]
+    [:div.pagination1
+     (when (> offset 0)
+         (let [pre-pages (int (/ offset num-thumbs))]
+             (if (> pre-pages 10)
+                 [:span.pagination
+                  (for [i (range 0 3)]
+                      [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])
+                  [:span.pagination "..."]
+                  (for [i (range (- pre-pages 3) pre-pages)]
+                      [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])]
+                 (for [i (range 0 pre-pages)]
+                     [:a.pagination {:href (str "/offset/" (* i num-thumbs))}
+                      (str " " i " ")]))))
+     [:span.pagination
+      [:input {:type "text" :id "current" :value (int (/ offset num-thumbs))}]
+      [:div {:id "message"}]
+      [:button {:type "button" :id "button" :hidden true} "Go"]]
+
+     (let [post-pages (int (/ (- (get-num-thumbs) offset) num-thumbs))]
+         (if (> post-pages 10)
+             [:span.pagination
+              (for [i (range 1 4)]
+                  [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
+                   (str " " (+ (int (/ offset num-thumbs)) i) " ")])
+              [:span.pagination " ... "]
+              (for [i (range (- post-pages 3) post-pages)]
+                  [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
+                   (str " " (+ (int (/ offset num-thumbs)) i) " ")])]
+             (for [i (range 0 post-pages)]
+                 [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
+                  (str " " (+ (int (/ offset num-thumbs)) i) " ")])))])
+
 (defn contact-page
     [offset remote-addr]
     (let [num-thumbs (get-grid remote-addr)
@@ -32,44 +75,16 @@
             [:div "No pictures found."]
             (page/html5
                 [:head
+                 [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
                  [:title "Contact Sheet"]
-                 [:link {:rel "stylesheet" :href "/css/style.css"}]]
+                 ]
                 [:body
                  [:h1 "Contact Sheet"]
-                 (hf/form-to
-                     [:post (str "/gridupdate/" offset)]
-                     [:span
-                      [:label "Pictures per page: "
-                       (hf/text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
-                      (hf/submit-button {:class "submit"} "Update")])
+                 (hf/text-field {:type "hidden" :id "numOfThumbs" :value (str num-thumbs)} (str num-thumbs))
+                 (grid-form offset num-thumbs)
                  (contact-sheet pics)
-                 [:div.pagination1
-                  (when (> offset 0)
-                      (let [pre-pages (int (/ offset num-thumbs))]
-                          (if (> pre-pages 10)
-                              [:span.pagination
-                               (for [i (range 0 3)]
-                                   [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])
-                               [:span.pagination "..."]
-                               (for [i (range (- pre-pages 3) pre-pages)]
-                                   [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])]
-                              (for [i (range 0 pre-pages)]
-                                  [:a.pagination {:href (str "/offset/" (* i num-thumbs))}
-                                   (str " " i " ")]))))
-                  [:span.pagination " This page "]
-                  (let [post-pages (int (/ (- (get-num-thumbs) offset) num-thumbs))]
-                      (if (> post-pages 10)
-                          [:span.pagination
-                           (for [i (range 1 4)]
-                               [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
-                                (str " " (+ (int (/ offset num-thumbs)) i) " ")])
-                           [:span.pagination " ... "]
-                           (for [i (range (- post-pages 3) post-pages)]
-                               [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
-                                (str " " (+ (int (/ offset num-thumbs)) i) " ")])]
-                          (for [i (range 0 post-pages)]
-                              [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
-                               (str " " (+ (int (/ offset num-thumbs)) i) " ")])))]]))))
+                 (pagination offset num-thumbs)
+                 [:script {:type "application/javascript" :src "/script.js"}]]))))
 
 ;;---------------------------------------------------------------------------
 

@@ -30,6 +30,7 @@
 (defn -main
     "Main entry point for the PicWeb application."
     [& args]
+    (set! *assert* true)
     (println "Starting PicWeb application...")
     (-> all-routes
         (wrap-session {:store (->ShopStore)})
@@ -41,4 +42,4 @@
         ;(wrap-defaults site-defaults)
         (run-server {:port 4559})
         )
-    (println "PicWeb is running!"))
+    (println "PicWeb is running on port 4559!"))

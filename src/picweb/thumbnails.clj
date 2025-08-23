@@ -1,5 +1,6 @@
 (ns picweb.thumbnails
-    (:require [next.jdbc :as jdbc]
+    (:require [clojure.string :as str]
+              [next.jdbc :as jdbc]
               [next.jdbc.result-set :as rs]
               [next.jdbc.sql :as sql]))
 
@@ -11,6 +12,8 @@
 
 (defn insert
     [table data]
+    {:pre [(keyword table) (map? data)]
+     :post [(or (nil? %) (integer? %))]}
     (try
         (let [res (sql/insert! ds-opts table data)]
             (if (empty? res)
@@ -23,6 +26,8 @@
 
 (defn update-thumb
     [id data]
+    {:pre [(int? id) (map? data)]
+     :post [(or (nil? %) (map? %))]}
     (try
         (let [res (sql/update! ds-opts :thumbnails data {:id id})]
             (if (empty? res)
@@ -36,118 +41,144 @@
 
 (defn get-all-tags
     []
-    (let [sql "SELECT * FROM tags ORDER BY name"
-          res (jdbc/execute! ds-opts [sql])]
-        ;(println "get-all-tags ->" res)
+    {:post [(sequential? %)]}
+    (let [res (sql/query ds-opts ["SELECT * FROM tags ORDER BY name"])]
         res))
 
 (defn get-pic-tags
     [id]
-    (let [sql "SELECT * FROM tags t WHERE t.tag_id IN (SELECT m.tag_id FROM tag_m2m m WHERE m.id = ?)"
-          res (jdbc/execute! ds-opts [sql id])]
-        ;(println "get-pic-tags: " id "->" res)
+    {:pre [(int? id)]
+     :post [(sequential? %)]}
+    (let [res (sql/query ds-opts ["SELECT * FROM tags t WHERE t.tag_id IN (SELECT m.tag_id FROM tag_m2m m WHERE m.id = ?)" id])]
         res))
 
 (defn get-prev-thumb
     [id]
-    (let [prev (jdbc/execute-one! ds-opts ["SELECT * FROM thumbnails WHERE id < ? ORDER BY id DESC LIMIT 1" id])]
+    {:pre [(int? id)]
+     :post [(or (nil? %) (map? %))]}
+    (let [prev (sql/query ds-opts ["SELECT * FROM thumbnails WHERE id < ? ORDER BY id DESC LIMIT 1" id])]
         (if (empty? prev)
             nil
             prev)))
 
 (defn get-next-thumb
     [id]
-    (let [next (jdbc/execute-one! ds-opts ["SELECT * FROM thumbnails WHERE id > ? ORDER BY id ASC LIMIT 1" id])]
+    {:pre [(int? id)]
+     :post [(or (nil? %) (map? %))]}
+    (let [next (sql/query ds-opts ["SELECT * FROM thumbnails WHERE id > ? ORDER BY id ASC LIMIT 1" id])]
         (if (empty? next)
             nil
             next)))
 
 (defn get-tag
     [tag-id]
-    (let [sql "SELECT * FROM tags WHERE tag_id = ?"
-          res (jdbc/execute-one! ds-opts [sql tag-id])]
+    {:pre [(int? tag-id)]
+     :post [(or (nil? %) (map? %))]}
+    (let [res (sql/query ds-opts ["SELECT * FROM tags WHERE tag_id = ?" tag-id])]
         (if (empty? res)
             nil
             (first res))))
 
 (defn find-tag-id
     [tag-name]
-    (let [sql "SELECT tag_id FROM tags WHERE name = ?"
-          res (jdbc/execute-one! ds-opts [sql tag-name])]
+    {:pre [(string? tag-name)]
+     :post [(or (nil? %) (int? %))]}
+    (let [res (sql/query ds-opts ["SELECT tag_id FROM tags WHERE name = ?" tag-name])]
         (if (empty? res)
             nil
-            (:tag_id res))))
-
-(defn save-tag
-    [pic-id tag-name]
-    (let [new-tag-id (insert :tags {:name tag-name})]
-        (if new-tag-id
-            (let [res (insert :tag_m2m {:id pic-id, :tag_id new-tag-id})]
-                (if (some? res)
-                    new-tag-id
-                    (do
-                        (println "Failed to save tag association"
-                             "for pic-id:" pic-id "and tag-name:" tag-name)
-                        nil)))
-            nil)))
+            (:tag_id (first res)))))
 
 (defn assoc-tag
     [pic-id tag-id]
+    {:pre [(int? pic-id) (int? tag-id)]
+     :post [(or (nil? %) (int? %))]}
     (let [res (insert :tag_m2m {:id pic-id, :tag_id tag-id})]
-        (if (some? res)
-            {:status :success}
-            {:status :error :message "Failed to assoc tag"})))
+        res))
 
-(defn remove-tag
+(defn save-tag
+    [pic-id tag-name]
+    {:pre [(int? pic-id) (string? tag-name)]
+     :post [(or (nil? %) (int? %))]}
+    (if-let [tag-id (find-tag-id (str/lower-case tag-name))]
+        (when (assoc-tag pic-id tag-id)
+            tag-id)
+        (let [new-tag-id (insert :tags {:name (str/lower-case tag-name)})]
+            (if new-tag-id
+                (let [res (insert :tag_m2m {:id pic-id, :tag_id new-tag-id})]
+                    (if res
+                        new-tag-id
+                        (do
+                            (println "Failed to save tag association"
+                                 "for pic-id:" pic-id "and tag-name:" tag-name)
+                            nil)))
+                nil))))
+
+(defn disassoc-tag
     [pic-id tag-id]
-    (let [sql-m2m "DELETE FROM tag_m2m WHERE id = ? AND tag_id = ?"
-          res-m2m (jdbc/execute-one! ds-opts [sql-m2m pic-id tag-id])]
-        (if (= 1 (count res-m2m))
-            {:status :success}
-            {:status :error :message "Failed to remove tag association"})))
+    {:pre [(int? pic-id) (int? tag-id)]
+     :post [(boolean? %)]}
+    (let [res (sql/delete! ds-opts :tag_m2m {:id pic-id :tag_id tag-id})]
+        (and (some? res) (= (:update_count (first res)) 1))))
 
 (defn update-rating
     [pic-id rating]
-    (sql/update! ds-opts :thumbnails {:rating rating} {:id pic-id}))
+    {:pre [(int? pic-id) (integer? rating)]
+     :post [(boolean? %)]}
+    (let [res (sql/update! ds-opts :thumbnails {:rating rating} {:id pic-id})]
+        (and (some? res) (= (:update_count (first res)) 1))))
 
 ;;-----------------------------------------------------------------------------
 
 (defn get-thumbs
     [offset num-per-page]
-    (let [sql (str "SELECT * FROM thumbnails ORDER BY timestr ASC LIMIT ? OFFSET ?")
-          res (jdbc/execute! ds-opts [sql num-per-page offset])]
+    {:pre [(integer? offset) (integer? num-per-page)]
+     :post [(sequential? %)]}
+    (let [res (sql/query ds-opts ["SELECT * FROM thumbnails ORDER BY timestr ASC LIMIT ? OFFSET ?" num-per-page offset])]
         res))
 
 (defn get-thumb
     [id]
-    (let [sql (str "SELECT * FROM thumbnails WHERE ID = ?")
-          res (jdbc/execute-one! ds-opts [sql id])]
-        res))
+    {:pre [(integer? id)]
+     :post [(or (nil? %) (map? %))]}
+    (let [res (sql/query ds-opts ["SELECT * FROM thumbnails WHERE ID = ?" id])]
+        (first res)))
 
 (defn get-num-thumbs
     []
-    (let [sql (str "SELECT count(*) FROM thumbnails")
-          res (jdbc/execute-one! ds-opts [sql])]
-        (first (vals res))))
+    {:post [(integer? %)]}
+    (let [res (sql/query ds-opts ["SELECT count(*) FROM thumbnails"])]
+        (-> res first vals first)))
 
 (defn get-all-thumb-ids
     []
-    (let [sql (str "SELECT id FROM thumbnails ORDER BY timestr ASC")
-          res (jdbc/execute! ds-opts [sql])]
+    {:post [(sequential? %)]}
+    (let [res (sql/query ds-opts ["SELECT id FROM thumbnails ORDER BY timestr ASC"])]
         (map :id res)))
+
+(defn find-thumb-by-date
+    [date]
+    {:pre [(int? date) (< 19700101 date 20251231)]
+     :post [(or (nil? %) (map? %))]}
+    (let [dstr (str/replace (str date) #"^(\d{4})(\d{2})(\d{2})$" "$1-$2-$3")
+          res (sql/query ds-opts ["SELECT * FROM thumbnails WHERE timestr >= ? ORDER BY timestr ASC LIMIT 1" dstr])]
+        (if (empty? res)
+            nil
+            (first res))))
 
 ;;-----------------------------------------------------------------------------
 
 (defn get-grid
     [id]
-    (let [sql (str "SELECT num_per_page FROM grid WHERE id = ?")
-          res (jdbc/execute-one! ds-opts [sql id])]
+    {:pre [(string? id)]
+     :post [(int? %)]}
+    (let [res (sql/query ds-opts ["SELECT num_per_page FROM grid WHERE id = ?" id])]
         (if (nil? res)
             25 ; default grid
-            (:num_per_page res))))
+            (:num_per_page (first res)))))
 
 (defn save-grid
     [id num-pics]
+    {:pre [(integer? id) (integer? num-pics)]}
     (let [num (get-grid id)]
         (if (or (nil? num) (not= num num-pics))
             (sql/insert! ds-opts :grid {:id id, :num_per_page num-pics})

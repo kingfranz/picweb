@@ -11,12 +11,17 @@ body {
 
 h1 {
     text-align: center;
-    color: #444;
+    color: white;
 }
 
 a {
     color: #007bff;
     text-decoration: none;
+}
+
+title {
+    text-align: center;
+    color: white;
 }
 
 a:hover {
@@ -120,6 +125,7 @@ a.pagination {
 
 .pic-details-td {
     text-align: center;
+    color: white;
     width: 50%
 }
 

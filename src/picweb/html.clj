@@ -51,7 +51,7 @@
         [:p]
         [:span.rating
          (hf/drop-down {:class "rating"} :rating
-                       [["no-id" "No rating"]
+                       [["No rating" "No rating"]
                         ["Delete it!" "1"]
                         ["Move it" "2"]
                         ["Not great" "3"]
@@ -59,7 +59,7 @@
                         ["Great" "5"]]
                        (if (:rating pic)
                            (str (:rating pic))
-                           "no-id"))
+                           "No rating"))
          ]
         (hf/submit-button {:class "submit"} "Update!")))
 
@@ -89,8 +89,9 @@
                   pic-tags (map :tag_id (get-pic-tags pic-id))]
                 (page/html5
                     [:head
+                     [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
                      [:title "Picture Details"]
-                     [:link {:rel "stylesheet" :href "/css/style.css"}]]
+                     ]
                     [:body
                      (pic-and-info pic pic-id)
                      [:div.wrapper
@@ -197,12 +198,17 @@
     (ring/file-response "/home/soren/Linux/clojure/picweb/resources/public/css/style.css"
                         {:headers {"Content-Type" "text/css"}}))
 
+(defn get-script
+    []
+    (ring/file-response "/home/soren/Linux/clojure/picweb/resources/public/js/script.js"
+                        {:headers {"Content-Type" "application/javascript"}}))
+
 ;;---------------------------------------------------------------------------
 
 (defn- check-name
     [x]
     (let [nn (name x)
-          ss (str/starts-with? nn "tag_")]
+          ss (and (str/starts-with? nn "tag_") (not= nn "tag_"))]
         (println "" nn "->" ss)
         ss))
 
@@ -222,34 +228,41 @@
     (try
         (let [tag-ids (set (checked-tags params))
               pic-tag-ids (set (map :tag_id (get-pic-tags pic-id)))
+              valid-new (when (and (some? new-tag) (nil? (find-tag-id (str/lower-case new-tag))))
+                          (str/lower-case new-tag))
               ; Remove tags that are not in the current pic
               to-remove (set/difference pic-tag-ids tag-ids)
               to-add (set/difference tag-ids pic-tag-ids)]
             ; check existing tags
+            ;(println "-- disassoc")
             (doseq [tag-id to-remove]
-                (remove-tag pic-id tag-id))
+                (disassoc-tag pic-id tag-id))
+            ;(println "-- assoc")
             (doseq [tag-id to-add]
                 (assoc-tag pic-id tag-id))
             ; check new tag
-            (when (some? new-tag)
-                (when-not (save-tag pic-id (str/lower-case new-tag))
-                    (ring/response "Failed to save new tag.")))
+            ;(println "-- nre tag")
+            (when (some? valid-new)
+                (when-not (save-tag pic-id valid-new)
+                    (throw (Exception. "Failed to save new tag."))))
             ; check rating
+            ;(println "-- rating")
             (let [rating (get-in params [:rating])]
-                (when (and rating (not= rating "no-id"))
+                (when (and rating (int? rating))
                     (let [rating-value (Integer/parseInt rating)]
                         (if (and (>= rating-value 1) (<= rating-value 5))
-                            (do
-                                (update-rating pic-id rating-value)
-                                ; Save the rating logic here
-                                ; For example, save to a database or update pic metadata
-                                (ring/redirect (str "/pic/" pic-id)))
-                            (ring/response "Invalid rating value."))))))
-
+                            (update-rating pic-id rating-value)
+                            (throw (Exception. "Invalid rating value.")))))))
         (catch Exception e
             (println "Error updating tags:" (.getMessage e))
+            (println (str "Parameters: " pic-id " " new-tag " " params))
             (println "Stack trace:" (with-out-str (pp/pprint (.getStackTrace e))))
-            (ring/response "Error updating tags."))))
+            ;(ring/response "Error updating tags.")
+            )
+        (finally
+            ;(println (ring/redirect (str "/pic/" pic-id)))
+            ;(ring/redirect (str "/pic/" pic-id))
+            "Cola kalle")))
 
 ;;---------------------------------------------------------------------------
 
@@ -278,3 +291,15 @@
         (if (empty? next)
             (ring/response "No next picture.")
             (ring/redirect (str "/pic/" (:id next))))))
+
+(defn find-date
+    [target remote-addr]
+    (if (< 19700101 target 20251231)
+        (if-let [found (find-thumb-by-date target)]
+            (let [all-ids (get-all-thumb-ids)
+                  pic-idx (.indexOf all-ids (:id found))
+                  num-thumbs (get-grid remote-addr)
+                  page-num (int (/ pic-idx num-thumbs))]
+                (ring/redirect (str "/offset/" (* page-num num-thumbs))))
+            (ring/response (str "No picture found for date: " target)))
+        (ring/response (str "No picture found for date: " target))))
