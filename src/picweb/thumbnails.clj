@@ -155,6 +155,22 @@
     (let [res (sql/query ds-opts ["SELECT id FROM thumbnails ORDER BY timestr ASC"])]
         (map :id res)))
 
+(defn get-all-thumbs
+    []
+    {:post [(sequential? %)]}
+    (let [res (sql/query ds-opts ["SELECT * FROM thumbnails ORDER BY timestr ASC"])]
+        res))
+
+(defn delete-thumb
+    [id]
+    {:pre [(int? id)]
+     :post [(boolean? %)]}
+    (let [res (sql/delete! ds-opts :thumbnails {:id id})]
+        (if (and (some? res) (= (:update_count (first res)) 1))
+            (let [res2 (sql/delete! ds-opts :tags_m2m {:id id})]
+                (and (some? res2) (>= (:update_count (first res2)) 0)))
+            false)))
+
 (defn find-thumb-by-date
     [date]
     {:pre [(int? date) (< 19700101 date 20251231)]

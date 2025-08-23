@@ -15,7 +15,7 @@
            com.github.seancorfield/next.jdbc {:mvn/version "1.3.1048"}
            }
  :aliases {
-           :run-m {:main-opts ["-m" "picweb"]}
+           :run-m {:main-opts ["-m" "picweb" "--cleanup"] :exec-fn picweb/-main :exec-args  {:arg "--cleanup"}}
            :run-x {:ns-default picweb
                    :exec-fn    -main}
            ;:exec-args  "-h"}

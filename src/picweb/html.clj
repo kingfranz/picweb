@@ -18,7 +18,7 @@
             [(str/join "." (butlast parts)) (last parts)]
             [filename ""])))
 
-(defn- mk-tn-name
+(defn mk-tn-name
     [thumb]
     (let [[fname ext] (split-ext (:filename thumb))]
         (str (:path thumb) "/" fname "_tn." ext)))
