@@ -2,7 +2,7 @@
     (:require [clojure.string :as str]
               [compojure.coercions :refer :all]
               [compojure.core :refer :all]
-              [picweb.html :refer [get-css get-next sheet-at get-script
+              [picweb.html :refer [get-css get-next sheet-at get-script get-rand-pic
                                    get-pic get-prev get-thumb-pic find-date
                                    pic-page update-tags rotate-left rotate-right]]
               [picweb.sheet :refer [contact-page update-grid]]))
@@ -28,9 +28,7 @@
                              (:remote-addr request)))
 
            (GET "/pic/:num" request
-               (let [aa (pic-page (get-num request :uri))]
-                   (println "pic-page: " aa)
-                   aa))
+               (pic-page (get-num request :uri)))
 
            (GET "/picture/:num" request
                (get-pic (get-num request :uri)))
@@ -38,10 +36,8 @@
            (GET "/thumb/:num" request
                (get-thumb-pic (get-num request :uri)))
 
-           (POST "/tagupdate" [pic-id :<< as-int, new & params]
-               (let [aa (update-tags pic-id new params)]
-                   (println "update-tags: " aa)
-                   aa))
+           (POST "/tagupdate" [pic-id :<< as-int, new-tag rating :<< as-int & params]
+               (update-tags pic-id new-tag rating params))
 
            (POST "/gridupdate/:num" request
                (update-grid (get-num request :uri)
@@ -53,6 +49,9 @@
 
            (GET "/next/:num" request
                (get-next (get-num request :uri)))
+
+           (GET "/rndpic/" request
+               (get-rand-pic))
 
            (GET "/rotate-left/:num" request
                (rotate-left (get-num request :uri)))

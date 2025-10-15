@@ -1,8 +1,5 @@
 (ns picweb.sheet
-    (:require [clojure.pprint :as pp]
-              [clojure.set :as set]
-              [clojure.string :as str]
-              [hiccup.form :as hf]
+    (:require [hiccup.form :as hf]
               [hiccup.page :as page]
               [picweb.thumbnails :refer :all]
               [ring.util.response :as ring]))
@@ -26,46 +23,33 @@
 
 (defn- grid-form
     [offset num-thumbs]
-(hf/form-to
-    [:post (str "/gridupdate/" offset)]
-    [:span
-     [:label "Pictures per page: "
-      (hf/text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
-     (hf/submit-button {:class "submit"} "Update")]))
+    (hf/form-to
+        [:post (str "/gridupdate/" offset)]
+        [:span
+         [:label "Pictures per page: "
+          (hf/text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
+         (hf/submit-button {:class "submit"} "Update")]))
 
 (defn- pagination
     [offset num-thumbs]
-    [:div.pagination1
-     (when (> offset 0)
-         (let [pre-pages (int (/ offset num-thumbs))]
-             (if (> pre-pages 10)
-                 [:span.pagination
-                  (for [i (range 0 3)]
-                      [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])
-                  [:span.pagination "..."]
-                  (for [i (range (- pre-pages 3) pre-pages)]
-                      [:a.pagination {:href (str "/offset/" (* i num-thumbs))} (str " " i " ")])]
-                 (for [i (range 0 pre-pages)]
-                     [:a.pagination {:href (str "/offset/" (* i num-thumbs))}
-                      (str " " i " ")]))))
-     [:span.pagination
-      [:input {:type "text" :id "current" :value (int (/ offset num-thumbs))}]
-      [:div {:id "message"}]
-      [:button {:type "button" :id "button" :hidden true} "Go"]]
+    (let [current (int (/ offset num-thumbs))]
+        [:div.pagination1
+         (when (> offset 0)
+             [:span.pagination1
+              [:a.pagination {:href (str "/offset/" (dec current))} (str " " (dec current) " ")]])
 
-     (let [post-pages (int (/ (- (get-num-thumbs) offset) num-thumbs))]
-         (if (> post-pages 10)
-             [:span.pagination
-              (for [i (range 1 4)]
-                  [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
-                   (str " " (+ (int (/ offset num-thumbs)) i) " ")])
-              [:span.pagination " ... "]
-              (for [i (range (- post-pages 3) post-pages)]
-                  [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
-                   (str " " (+ (int (/ offset num-thumbs)) i) " ")])]
-             (for [i (range 0 post-pages)]
-                 [:a.pagination {:href (str "/offset/" (+ offset (* i num-thumbs)))}
-                  (str " " (+ (int (/ offset num-thumbs)) i) " ")])))])
+         [:span.pagination1
+          [:abbr {:title (str "Enter a value < 500 for pagenunber\n"
+                  "Between 500 and 40000 for imagenumber\n"
+                  "Between 19700101 and 20251231 to search by date")}
+          [:input.pagination1 {:type "text" :id "current" :value current}]]
+          [:div {:id "message"}]
+          [:button {:type "button" :id "button" :hidden true} "Go"]]
+
+         (let [post-pages (- num-thumbs current)]
+             (when (> post-pages 0)
+                 [:span.pagination1
+                  [:a.pagination {:href (str "/offset/" (inc current))} (str " " (inc current) " ")]]))]))
 
 (defn contact-page
     [offset remote-addr]

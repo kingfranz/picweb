@@ -10,6 +10,11 @@
 
 ;;-----------------------------------------------------------------------------
 
+(defn spy
+    [x]
+    (println "SPY:" x)
+    x)
+
 (defn insert
     [table data]
     {:pre [(keyword table) (map? data)]
@@ -59,7 +64,7 @@
     (let [prev (sql/query ds-opts ["SELECT * FROM thumbnails WHERE id < ? ORDER BY id DESC LIMIT 1" id])]
         (if (empty? prev)
             nil
-            prev)))
+            (first prev))))
 
 (defn get-next-thumb
     [id]
@@ -68,7 +73,7 @@
     (let [next (sql/query ds-opts ["SELECT * FROM thumbnails WHERE id > ? ORDER BY id ASC LIMIT 1" id])]
         (if (empty? next)
             nil
-            next)))
+            (first next))))
 
 (defn get-tag
     [tag-id]
@@ -143,6 +148,13 @@
     (let [res (sql/query ds-opts ["SELECT * FROM thumbnails WHERE ID = ?" id])]
         (first res)))
 
+(defn get-nth-thumb
+    [num]
+    {:pre [(integer? num)]
+     :post [(or (nil? %) (map? %))]}
+    (let [res (sql/query ds-opts ["SELECT * FROM thumbnails ORDER BY timeStr ASC LIMIT 1 OFFSET ?" num])]
+        (first res)))
+
 (defn get-num-thumbs
     []
     {:post [(integer? %)]}
@@ -188,7 +200,7 @@
     {:pre [(string? id)]
      :post [(int? %)]}
     (let [res (sql/query ds-opts ["SELECT num_per_page FROM grid WHERE id = ?" id])]
-        (if (nil? res)
+        (if (empty? res)
             25 ; default grid
             (:num_per_page (first res)))))
 

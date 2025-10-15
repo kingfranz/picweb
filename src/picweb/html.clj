@@ -39,10 +39,9 @@
          (hf/text-field {:type "hidden" :value pic-id} "pic-id")
          [:br]
          [:label "Add a new tag:"]
-         [:input {:type "text" :name "new" :id "new" :class "tags"
-                  :placeholder "New tag (lowercase)"}]
-         ]
-
+         [:addr  {:title "Separate multiple tags with ;"}
+         [:input {:type "text" :name "new-tag" :id "new-tag" :class "tags"
+                  :placeholder "New tag (lowercase)"}]]]
         [:p]
         [:span.rating
          (hf/drop-down {:class "rating"} :rating
@@ -95,7 +94,8 @@
                       ]
                      (tag-and-rate all-tags pic-tags pic-id pic)
                      [:div.wrapper
-                      [:a {:href (str "/prev/" pic-id)} "Previous   .."]
+                      [:a {:href (str "/prev/" pic-id)} "Previous   ."]
+                      [:a {:href (str "/rndpic/")} ".   Random"]
                       [:a {:href (str "/next/" pic-id)} "..   Next"]]
                      [:p]
                      [:div.back-link
@@ -199,12 +199,11 @@
                         {:headers {"Content-Type" "application/javascript"}}))
 
 ;;---------------------------------------------------------------------------
-
+/
 (defn- check-name
     [x]
     (let [nn (name x)
           ss (and (str/starts-with? nn "tag_") (not= nn "tag_"))]
-        (println "" nn "->" ss)
         ss))
 
 (defn- checked-tags
@@ -214,50 +213,50 @@
                    (filter #(check-name %))
                    (map #(subs (name %) 4))
                    (map str/lower-case)
-                   (map #(find-tag-id %))
-                   (remove nil?))]
-        ttt))
+    (map #(find-tag-id %))
+(remove nil?))]
+ttt))
 
 (defn update-tags
-    [pic-id new-tag params]
+    [pic-id new-tag rating params]
     (try
         (let [tag-ids (set (checked-tags params))
               pic-tag-ids (set (map :tag_id (get-pic-tags pic-id)))
-              valid-new (when (and (some? new-tag) (nil? (find-tag-id (str/lower-case new-tag))))
-                          (str/lower-case new-tag))
+              aaa (if (str/blank? new-tag)
+                    []
+                      (->> (str/split new-tag #";")
+                        (map str/trim)
+                        (remove str/blank?)
+                        (map str/lower-case)
+                           (remove #(< (count %) 3))
+                           (remove #(some (fn [c] (not (Character/isLetterOrDigit c))) %))
+                           (filter #(re-find #"^[a-zåäö]" %))
+                        (filter #(nil? (find-tag-id %)))))
               ; Remove tags that are not in the current pic
               to-remove (set/difference pic-tag-ids tag-ids)
               to-add (set/difference tag-ids pic-tag-ids)]
             ; check existing tags
-            ;(println "-- disassoc")
             (doseq [tag-id to-remove]
                 (disassoc-tag pic-id tag-id))
-            ;(println "-- assoc")
             (doseq [tag-id to-add]
                 (assoc-tag pic-id tag-id))
             ; check new tag
-            ;(println "-- nre tag")
-            (when (some? valid-new)
-                (when-not (save-tag pic-id valid-new)
-                    (throw (Exception. "Failed to save new tag."))))
+            (doseq [tag-name aaa]
+                (when-not (save-tag pic-id tag-name)
+                    (throw (Exception. (str "Failed to save new tag: " tag-name)))))
             ; check rating
-            ;(println "-- rating")
-            (let [rating (get-in params [:rating])]
-                (when (and rating (int? rating))
-                    (let [rating-value (Integer/parseInt rating)]
-                        (if (and (>= rating-value 1) (<= rating-value 5))
-                            (update-rating pic-id rating-value)
-                            (throw (Exception. "Invalid rating value.")))))))
+            (when (and rating (int? rating))
+                (if (and (>= rating 1) (<= rating 5))
+                    (update-rating pic-id rating)
+                    (throw (Exception. "Invalid rating value."))))
+            (ring/redirect (str "/pic/" pic-id)))
         (catch Exception e
             (println "Error updating tags:" (.getMessage e))
             (println (str "Parameters: " pic-id " " new-tag " " params))
             (println "Stack trace:" (with-out-str (pp/pprint (.getStackTrace e))))
-            ;(ring/response "Error updating tags.")
+            (ring/response "Error updating tags.")
             )
-        (finally
-            ;(println (ring/redirect (str "/pic/" pic-id)))
-            ;(ring/redirect (str "/pic/" pic-id))
-            "Cola kalle")))
+        ))
 
 ;;---------------------------------------------------------------------------
 
@@ -286,6 +285,15 @@
         (if (empty? next)
             (ring/response "No next picture.")
             (ring/redirect (str "/pic/" (:id next))))))
+
+(defn get-rand-pic
+    []
+    (let [num (get-num-thumbs)
+          target (rand-int num)
+          thumb (get-nth-thumb target)]
+        (if (empty? thumb)
+            (ring/response "No random picture found.")
+        (ring/redirect (str "/pic/" (:id thumb))))))
 
 (defn find-date
     [target remote-addr]
