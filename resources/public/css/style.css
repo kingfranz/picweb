@@ -59,15 +59,6 @@ figcaption.contact-text {
     width: 150px;
 }
 
-/*
-.thumb img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 4px;
-    width: 150px;
-    height: 150px;
-}
-*/
 .tags {
     display: inline-block;
     background-color: #2b2831;
@@ -194,36 +185,10 @@ href.rotate {
     color: #007bff;
 }
 
-.tooltip {
-  position: relative;
-  display: inline-block;
-  border-bottom: 1px dotted black; /* Add dots under the hoverable text */
-  cursor: pointer;
-}
-
-/* Tooltip text */
-.tooltiptext {
-  visibility: hidden; /* Hidden by default */
-  width: 130px;
-  background-color: black;
-  color: #fffffff;
-  text-align: center;
-  padding: 5px 0;
-  border-radius: 6px;
-  position: absolute;
-  z-index: 1; /* Ensure tooltip is displayed above content */
-}
-
-/* Show the tooltip text on hover */
-.tooltip:hover .tooltiptext {
-  visibility: visible;
-}
-
-[data-tooltip]:hover::after {
-  display: block;
-  position: absolute;
-  content: attr(data-tooltip);
-  border: 1px solid black;
-  background: #eee;
-  padding: .25em;
+.edit-tag {
+    display: inline-block;
+    /*margin-top: 30px;*/
+    text-decoration: none;
+    font-size: 25px;
+    color: #007bff;
 }

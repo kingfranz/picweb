@@ -6,6 +6,7 @@
               [hiccup.form :as hf]
               [hiccup.page :as page]
               [picweb.thumbnails :refer :all]
+              [picweb.tags :refer :all]
               [ring.util.response :as ring])
     )
 
@@ -39,9 +40,9 @@
          (hf/text-field {:type "hidden" :value pic-id} "pic-id")
          [:br]
          [:label "Add a new tag:"]
-         [:addr  {:title "Separate multiple tags with ;"}
-         [:input {:type "text" :name "new-tag" :id "new-tag" :class "tags"
-                  :placeholder "New tag (lowercase)"}]]]
+         [:addr {:title "Separate multiple tags with ;"}
+          [:input {:type        "text" :name "new-tag" :id "new-tag" :class "tags"
+                   :placeholder "New tag"}]]]
         [:p]
         [:span.rating
          (hf/drop-down {:class "rating"} :rating
@@ -89,8 +90,8 @@
                     [:body
                      (pic-and-info pic pic-id)
                      [:div.wrapper
-                       [:a {:href (str "/rotate-left/" pic-id)} "Rotate Left   .."]
-                       [:a {:href (str "/rotate-right/" pic-id)} "..   Rotate Right"]
+                      [:a {:href (str "/rotate-left/" pic-id)} "Rotate Left   .."]
+                      [:a {:href (str "/rotate-right/" pic-id)} "..   Rotate Right"]
                       ]
                      (tag-and-rate all-tags pic-tags pic-id pic)
                      [:div.wrapper
@@ -99,13 +100,16 @@
                       [:a {:href (str "/next/" pic-id)} "..   Next"]]
                      [:p]
                      [:div.back-link
-                      [:a {:href (str "/sheetat/" pic-id)} "Back to Contact Sheet"]]])))))
+                      [:a {:href (str "/sheetat/" pic-id)} "Back to Contact Sheet"]]
+                     [:div.back-link
+                      [:a {:href "/edit-tags/"} "Edit Tags"]]
+                     ])))))
 
 ;;---------------------------------------------------------------------------
 
 (defn sheet-at
     [pic-id remote-addr]
-    {:pre [(int? pic-id) (string? remote-addr)] }
+    {:pre [(int? pic-id) (string? remote-addr)]}
     (let [num-thumbs (get-grid remote-addr)
           all-ids (get-all-thumb-ids)
           pic-idx (.indexOf all-ids pic-id)
@@ -212,10 +216,14 @@
                    (keys)
                    (filter #(check-name %))
                    (map #(subs (name %) 4))
-                   (map str/lower-case)
-    (map #(find-tag-id %))
-(remove nil?))]
-ttt))
+                   ;;(map str/lower-case)
+                   (map #(find-tag-id %))
+                   (remove nil?))]
+        ttt))
+
+(def allowed-str "abcdefghijklmnopqrstuvxyzåäö0123456789- ")
+(def lc-allowed-chars (set (seq allowed-str)))
+(def allowed-chars (set/union lc-allowed-chars (str/upper-case allowed-str)))
 
 (defn update-tags
     [pic-id new-tag rating params]
@@ -223,15 +231,15 @@ ttt))
         (let [tag-ids (set (checked-tags params))
               pic-tag-ids (set (map :tag_id (get-pic-tags pic-id)))
               aaa (if (str/blank? new-tag)
-                    []
+                      []
                       (->> (str/split new-tag #";")
-                        (map str/trim)
-                        (remove str/blank?)
-                        (map str/lower-case)
-                           (remove #(< (count %) 3))
-                           (remove #(some (fn [c] (not (Character/isLetterOrDigit c))) %))
-                           (filter #(re-find #"^[a-zåäö]" %))
-                        (filter #(nil? (find-tag-id %)))))
+                           (map str/trim)
+                           (remove str/blank?)
+                           ;;(map str/lower-case)
+                           (remove #(< (count %) 2))
+                           (filter #(every? (fn [s] (contains? allowed-chars s)) (seq %)))
+                           ;;(filter #(re-find #"^[a-zåäö]" %))
+                           (filter #(nil? (find-tag-id %)))))
               ; Remove tags that are not in the current pic
               to-remove (set/difference pic-tag-ids tag-ids)
               to-add (set/difference tag-ids pic-tag-ids)]

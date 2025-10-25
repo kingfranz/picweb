@@ -3,8 +3,8 @@
               [compojure.coercions :refer :all]
               [compojure.core :refer :all]
               [picweb.html :refer [get-css get-next sheet-at get-script get-rand-pic
-                                   get-pic get-prev get-thumb-pic find-date
-                                   pic-page update-tags rotate-left rotate-right]]
+                                   get-pic get-prev get-thumb-pic find-date edit-tags
+                                   pic-page update-tags rotate-left rotate-right edit-tags-post]]
               [picweb.sheet :refer [contact-page update-grid]]))
 
 (defn get-num
@@ -44,6 +44,9 @@
                             (get-num request :num_per_page)
                             (:remote-addr request)))
 
+           (POST "/edit-tags" request
+               (edit-tags-post request))
+
            (GET "/prev/:num" request
                (get-prev (get-num request :uri)))
 
@@ -52,6 +55,9 @@
 
            (GET "/rndpic/" request
                (get-rand-pic))
+
+           (GET "/edit-tags/" request
+               (edit-tags))
 
            (GET "/rotate-left/:num" request
                (rotate-left (get-num request :uri)))
