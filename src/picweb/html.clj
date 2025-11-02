@@ -29,7 +29,7 @@
 (defn- tag-and-rate
     [all-tags pic-tags pic-id pic]
     (hf/form-to
-        [:post "/tagupdate"]
+        [:post (str "/tagupdate/" pic-id)]
         [:div.tags
          (for [tag (sort-by :name all-tags)]
              [:span.tags
@@ -85,6 +85,7 @@
                 (page/html5
                     [:head
                      [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
+                     [:link {:rel "stylesheet" :href "/css/w3.css?id=1234"}]
                      [:title "Picture Details"]
                      ]
                     [:body
@@ -96,13 +97,13 @@
                      (tag-and-rate all-tags pic-tags pic-id pic)
                      [:div.wrapper
                       [:a {:href (str "/prev/" pic-id)} "Previous   ."]
-                      [:a {:href (str "/rndpic/")} ".   Random"]
+                      [:a {:href (str "/rndpic")} ".   Random"]
                       [:a {:href (str "/next/" pic-id)} "..   Next"]]
                      [:p]
                      [:div.back-link
-                      [:a {:href (str "/sheetat/" pic-id)} "Back to Contact Sheet"]]
-                     [:div.back-link
-                      [:a {:href "/edit-tags/"} "Edit Tags"]]
+                      [:a {:href (str "/sheetat/" pic-id)} "Back to Contact Sheet"]
+                      [:p]
+                      [:a {:href "/edit-tags"} "Edit Tags"]]
                      ])))))
 
 ;;---------------------------------------------------------------------------
@@ -110,7 +111,8 @@
 (defn sheet-at
     [pic-id remote-addr]
     {:pre [(int? pic-id) (string? remote-addr)]}
-    (let [num-thumbs (get-grid remote-addr)
+    (let [num-thumbs* (get-grid remote-addr)
+          num-thumbs (if (nil? num-thumbs*) 25 num-thumbs*)
           all-ids (get-all-thumb-ids)
           pic-idx (.indexOf all-ids pic-id)
           page-num (int (/ pic-idx num-thumbs))]
@@ -192,16 +194,6 @@
                 (ring/file-response img-path
                                     {:headers {"Content-Type" "image/jpeg"}})))))
 
-(defn get-css
-    []
-    (ring/file-response "/home/soren/Linux/clojure/picweb/resources/public/css/style.css"
-                        {:headers {"Content-Type" "text/css"}}))
-
-(defn get-script
-    []
-    (ring/file-response "/home/soren/Linux/clojure/picweb/resources/public/js/script.js"
-                        {:headers {"Content-Type" "application/javascript"}}))
-
 ;;---------------------------------------------------------------------------
 /
 (defn- check-name
@@ -226,9 +218,12 @@
 (def allowed-chars (set/union lc-allowed-chars (str/upper-case allowed-str)))
 
 (defn update-tags
-    [pic-id new-tag rating params]
+    [pic-id request]
     (try
-        (let [tag-ids (set (checked-tags params))
+        (let [params (get request :params {})
+              new-tag (get params :new-tag "")
+              rating (get params :rating nil)
+              tag-ids (set (checked-tags params))
               pic-tag-ids (set (map :tag_id (get-pic-tags pic-id)))
               aaa (if (str/blank? new-tag)
                       []
@@ -260,7 +255,7 @@
             (ring/redirect (str "/pic/" pic-id)))
         (catch Exception e
             (println "Error updating tags:" (.getMessage e))
-            (println (str "Parameters: " pic-id " " new-tag " " params))
+            (println (str "Parameters: " pic-id " " request))
             (println "Stack trace:" (with-out-str (pp/pprint (.getStackTrace e))))
             (ring/response "Error updating tags.")
             )
@@ -273,7 +268,8 @@
     (page/html5
         [:head
          [:title "404 Not Found"]
-         [:link {:rel "stylesheet" :href "/css/style.css"}]]
+         [:link {:rel "stylesheet" :href "/css/style.css"}]
+         [:link {:rel "stylesheet" :href "/css/w3.css"}]]
         [:body
          [:h1 "404 Not Found"]
          [:p "The page you are looking for does not exist."]]))
@@ -309,7 +305,8 @@
         (if-let [found (find-thumb-by-date target)]
             (let [all-ids (get-all-thumb-ids)
                   pic-idx (.indexOf all-ids (:id found))
-                  num-thumbs (get-grid remote-addr)
+                  num-thumbs* (get-grid remote-addr)
+                  num-thumbs (if (nil? num-thumbs*) 25 num-thumbs*)
                   page-num (int (/ pic-idx num-thumbs))]
                 (ring/redirect (str "/offset/" (* page-num num-thumbs))))
             (ring/response (str "No picture found for date: " target)))

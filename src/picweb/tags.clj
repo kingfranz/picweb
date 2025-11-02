@@ -1,16 +1,19 @@
 (ns picweb.tags
     (:require [clojure.string :as str]
+              [hiccup.page :as page]
+              [hiccup.form :as hf]
               [picweb.thumbnails :refer :all]
               [next.jdbc :as jdbc]
               [next.jdbc.result-set :as rs]
-              [next.jdbc.sql :as sql]))
+              [next.jdbc.sql :as sql]
+              [ring.util.response :as ring]))
 
 ;;-----------------------------------------------------------------------------
 
 (defn get-all-tags
     []
     {:post [(sequential? %)]}
-    (let [res (sql/query ds-opts ["SELECT * FROM tags ORDER BY name"])]
+    (let [res (sql/query ds-opts ["SELECT * FROM tags ORDER BY name COLLATE NOCASE ASC"])]
         res))
 
 (defn get-pic-tags
@@ -45,13 +48,17 @@
     (let [res (insert :tag_m2m {:id pic-id, :tag_id tag-id})]
         res))
 
-(defn delete-tag
+(defn delete-tag-from-db
     [tag-id]
     {:pre [(int? tag-id)]
      :post [(boolean? %)]}
-    (let [res1 (sql/delete! ds-opts :tag_m2m {:tag_id tag-id})
-          res2 (sql/delete! ds-opts :tags {:tag_id tag-id})]
-        (and (some? res2) (= (:update_count (first res2)) 1))))
+    (let [res1 (sql/delete! ds-opts :tag_m2m {:tag_id tag-id})]
+        (if (> (res1 :next.jdbc/update-count) 0)
+            (let [res2 (sql/delete! ds-opts :tags {:tag_id tag-id})]
+                (if (> (res2 :next.jdbc/update-count) 0)
+                    true
+                    false))
+            false)))
 
 (defn save-tag
     [pic-id tag-name]
@@ -86,3 +93,60 @@
      :post [(boolean? %)]}
     (let [res (sql/delete! ds-opts :tag_m2m {:id pic-id :tag_id tag-id})]
         (and (some? res) (= (:update_count (first res)) 1))))
+
+(defn get-all-m2m
+    []
+    (sql/query ds-opts ["SELECT * FROM tag_m2m ORDER BY tag_id"]))
+
+;;-----------------------------------------------------------------------------------------
+
+(defn edit-tags
+    []
+    (page/html5
+        [:head
+         [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
+         [:style "body {width: 50%;}"]
+         [:link {:rel "stylesheet" :href "/css/w3.css"}]
+         [:title "Tags"]
+         ]
+        [:body
+         (let [all-tags (get-all-tags)
+               all-links (get-all-m2m)
+               tags-with-extra (map #(assoc % :usage (count (filter (fn [ll] (= (:tag_id %) (:tag_id ll))) all-links))) all-tags)]
+             [:div.w3-container
+             [:table.w3-table.w3-striped.w3-border.w3-small
+              [:tr
+               [:th "Name"]
+               [:th "ID"]
+               [:th "Num"]
+               [:th "Rename"]
+               [:th "Delete"]
+               ]
+              (for [t tags-with-extra]
+                  [:tr
+                   (hf/form-to
+                       [:post (str "/rename-tag/" (:tag_id t))]
+                       [:td (hf/text-field {:value (:name t) :id (str "name-" (:tag_id t))} (:name t))]
+                   [:td (:tag_id t)]
+                   [:td (:usage t)]
+                   [:td  (hf/submit-button "Rename")])
+                   [:td [:a {:href (str "/delete-tag/" (:tag_id t))}  "Del"]] ;[:button {:onclick "return confirm('Are you sure?')"}]]]
+                   ])]])
+         [:p]
+         [:p]
+         [:a {:href "/"} "Back to contact sheet"]
+         ]))
+
+(defn rename-tag
+    [tag-id request]
+    (let [tag (get-tag tag-id)
+          name (keyword (:name tag))
+          new-name (get-in request [:params name])]
+        (sql/update! ds-opts :tags {:name new-name} {:tag_id tag-id})
+        (ring/redirect "/edit-tags?xx=567")))
+
+(defn delete-tag
+    [tag-id]
+    (if (delete-tag-from-db tag-id)
+        (ring/redirect "/edit-tags")
+        (ring/response "Unable to delete tag")))

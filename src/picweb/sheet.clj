@@ -53,13 +53,15 @@
 
 (defn contact-page
     [offset remote-addr]
-    (let [num-thumbs (get-grid remote-addr)
+    (let [num-thumbs* (get-grid remote-addr)
+          num-thumbs (if (nil? num-thumbs*) 25 num-thumbs*)
           pics (get-thumbs offset num-thumbs)]
         (if (empty? pics)
             [:div "No pictures found."]
             (page/html5
                 [:head
                  [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
+                 [:link {:rel "stylesheet" :href "/css/w3.css"}]
                  [:title "Contact Sheet"]
                  ]
                 [:body
@@ -68,7 +70,7 @@
                  (grid-form offset num-thumbs)
                  (contact-sheet pics)
                  (pagination offset num-thumbs)
-                 [:script {:type "application/javascript" :src "/script.js"}]]))))
+                 [:script {:type "application/javascript" :src "/js/script.js"}]]))))
 
 ;;---------------------------------------------------------------------------
 

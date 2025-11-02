@@ -2,7 +2,8 @@
     (:require [clojure.string :as str]
               [next.jdbc :as jdbc]
               [next.jdbc.result-set :as rs]
-              [next.jdbc.sql :as sql]))
+              [next.jdbc.sql :as sql]
+              [ring.util.response :as ring]))
 
 (def db {:dbtype "sqlite" :dbname "pictures.sqlite3"})
 (def ds (jdbc/get-datasource db))
@@ -133,19 +134,20 @@
 ;;-----------------------------------------------------------------------------
 
 (defn get-grid
-    [id]
-    {:pre [(string? id)]
-     :post [(int? %)]}
-    (let [res (sql/query ds-opts ["SELECT num_per_page FROM grid WHERE id = ?" id])]
+    [remote-addr]
+    {:pre [(string? remote-addr)]
+     :post [(or (int? %) (nil? %))]}
+    (let [res (sql/query ds-opts ["SELECT num_per_page FROM grid WHERE id = ?" remote-addr])]
         (if (empty? res)
-            25 ; default grid
+            nil ; default grid
             (:num_per_page (first res)))))
 
 (defn save-grid
-    [id num-pics]
-    {:pre [(integer? id) (integer? num-pics)]}
-    (let [num (get-grid id)]
-        (if (or (nil? num) (not= num num-pics))
-            (sql/insert! ds-opts :grid {:id id, :num_per_page num-pics})
-            (sql/update! ds-opts :grid {:num_per_page num-pics} {:id id}))))
+    [remote-addr num-pics]
+    {:pre [(string? remote-addr) (integer? num-pics)]}
+    (let [num (get-grid remote-addr)]
+        (if (nil? num)
+            (sql/insert! ds-opts :grid {:id remote-addr, :num_per_page num-pics})
+            (sql/update! ds-opts :grid {:num_per_page num-pics} {:id remote-addr}))
+        (ring/redirect "/")))
 

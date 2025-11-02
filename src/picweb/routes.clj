@@ -2,9 +2,11 @@
     (:require [clojure.string :as str]
               [compojure.coercions :refer :all]
               [compojure.core :refer :all]
-              [picweb.html :refer [get-css get-next sheet-at get-script get-rand-pic
-                                   get-pic get-prev get-thumb-pic find-date edit-tags
-                                   pic-page update-tags rotate-left rotate-right edit-tags-post]]
+              [compojure.route :as route]
+              [picweb.html :refer [get-next sheet-at get-rand-pic
+                                   get-pic get-prev get-thumb-pic find-date four-oh-four
+                                   pic-page update-tags rotate-left rotate-right]]
+              [picweb.tags :refer [edit-tags rename-tag delete-tag]]
               [picweb.sheet :refer [contact-page update-grid]]))
 
 (defn get-num
@@ -36,16 +38,17 @@
            (GET "/thumb/:num" request
                (get-thumb-pic (get-num request :uri)))
 
-           (POST "/tagupdate" [pic-id :<< as-int, new-tag rating :<< as-int & params]
-               (update-tags pic-id new-tag rating params))
+           (POST "/tagupdate/:num" request
+               ;(println pic-id new-tag rating params)
+               (update-tags (get-num request :uri) request))
 
            (POST "/gridupdate/:num" request
                (update-grid (get-num request :uri)
                             (get-num request :num_per_page)
                             (:remote-addr request)))
 
-           (POST "/edit-tags" request
-               (edit-tags-post request))
+           (POST "/rename-tag/:tag-id" request
+               (rename-tag (get-num request :uri) request))
 
            (GET "/prev/:num" request
                (get-prev (get-num request :uri)))
@@ -53,11 +56,14 @@
            (GET "/next/:num" request
                (get-next (get-num request :uri)))
 
-           (GET "/rndpic/" request
+           (GET "/rndpic" request
                (get-rand-pic))
 
-           (GET "/edit-tags/" request
+           (GET "/edit-tags" request
                (edit-tags))
+
+           (GET "/delete-tag/:num" request
+               (delete-tag (get-num request :uri)))
 
            (GET "/rotate-left/:num" request
                (rotate-left (get-num request :uri)))
@@ -69,9 +75,15 @@
                (find-date (get-num request :uri)
                           (:remote-addr request)))
 
-           (GET "/css/style.css" []
-               (get-css))
+           ;(GET "/css/style.css" []
+           ;    (get-css))
+           ;
+           ;(GET "/css/w3.css" []
+           ;    (get-css2))
+           ;
+           ;(GET "/script.js" []
+           ;    (get-script))
 
-           (GET "/script.js" []
-               (get-script))
-           )
+           (route/resources "/")
+           (route/not-found
+               (four-oh-four)))

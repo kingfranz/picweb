@@ -1,29 +1,35 @@
 (ns picweb
-    (:require [compojure.core :refer [defroutes GET POST]]
-              [compojure.route :as route]
-              [clojure.java.io :as io]
+    (:require [clojure.java.io :as io]
               [clojure.java.shell :refer [sh]]
-              [picweb.html :refer [four-oh-four mk-tn-name]]
+              [picweb.html :refer [mk-tn-name]]
               [picweb.routes :refer [app-routes]]
-              [picweb.thumbnails :refer [get-all-thumbs delete-thumb]]
+              [picweb.thumbnails :refer [delete-thumb get-all-thumbs]]
               [ring.middleware.cookies :refer [wrap-cookies]]
               [ring.middleware.keyword-params :refer [wrap-keyword-params]]
               [ring.middleware.params :refer [wrap-params]]
-             [ring.middleware.stacktrace :refer [wrap-stacktrace]])
+              [ring.middleware.resource :refer [wrap-resource]]
+              [ring.middleware.stacktrace :refer [wrap-stacktrace]])
     (:use [org.httpkit.server :only [run-server]])
     (:gen-class))
 
 (defn- trace-call
     [handler]
     (fn [request]
-       ; (println "Incoming:")
-       ; (pp/pprint request)
+        ; (println "Incoming:")
+        ; (pp/pprint request)
         (let [ret (handler request)]
             ret)))
 
-(defroutes all-routes
-           app-routes
-           (route/not-found (four-oh-four)))
+(def app
+    (-> app-routes
+        (wrap-keyword-params)
+        (wrap-params)
+        (wrap-cookies)
+        (wrap-stacktrace)
+        ;(wrap-resource "resources")
+        (trace-call)
+        ;(route/not-found (four-oh-four))
+        ))
 
 (defn- cleanup
     []
@@ -49,7 +55,7 @@
                         (if (= 0 (:exit res))
                             (println "Thumbnail recreated successfully for" fpath)
                             (println "Error recreating thumbnail for" fpath ":" (:err res))))
-                )
+                    )
                 (and (not (.exists (io/file fpath))) (not (.exists (io/file thpath))))
                 (do
                     (println "both missing: " fpath " " (.exists (io/file fpath)))
@@ -67,15 +73,8 @@
             (println "Running in clean mode, not starting server.")
             (cleanup)
             (System/exit 0)
-        )
-    (do
-    (println "Starting PicWeb application...")
-    (-> all-routes
-        (wrap-keyword-params)
-        (wrap-params)
-        (wrap-cookies)
-        (wrap-stacktrace)
-        (trace-call)
-        (run-server {:port 4559})
-        )
-    (println "PicWeb is running on port 4559!"))))
+            )
+        (do
+            (println "Starting PicWeb application...")
+            (run-server app {:join? false :port 4559})))
+    (println "PicWeb is running on port 4559!"))

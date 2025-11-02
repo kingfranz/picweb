@@ -5,8 +5,9 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #2b2831;
+    background-image: url("inflicted.png");
     color: #333;
+    background-repeat: repeat;
 }
 
 h1 {
@@ -57,6 +58,7 @@ figcaption.contact-text {
     text-align: center;
     padding: 5px;
     width: 150px;
+    color: white;
 }
 
 .tags {
@@ -148,6 +150,7 @@ a.pagination {
   font-size: 25px;
   margin-top: 10px;
   margin-bottom: 5px;
+  color: white;
 }
 
 div.rotate {
@@ -179,7 +182,7 @@ href.rotate {
 
 .back-link {
     display: inline-block;
-    /*margin-top: 30px;*/
+    margin-bottom: 30px;
     text-decoration: none;
     font-size: 25px;
     color: #007bff;
@@ -192,3 +195,4 @@ href.rotate {
     font-size: 25px;
     color: #007bff;
 }
+
