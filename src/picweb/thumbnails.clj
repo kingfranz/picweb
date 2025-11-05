@@ -33,16 +33,9 @@
 (defn update-thumb
     [id data]
     {:pre [(int? id) (map? data)]
-     :post [(or (nil? %) (map? %))]}
-    (try
-        (let [res (sql/update! ds-opts :thumbnails data {:id id})]
-            (if (empty? res)
-                nil
-                (first (vals res))))
-        (catch Exception e
-            (println "Error updating thumbnail with ID:" id "and data:" data)
-            (println "Exception:" (.getMessage e))
-            nil)))
+     :post [(boolean? %)]}
+    (let [res (sql/update! ds-opts :thumbnails data {:id id})]
+        (and (some? res) (= (:update_count (first res)) 1))))
 
 
 (defn update-rating

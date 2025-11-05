@@ -33,16 +33,16 @@
         [:div.tags
          (for [tag (sort-by :name all-tags)]
              [:span.tags
-              [:label.tags (:name tag)]
+              [:label.tags (:name tag)
               (hf/check-box {:class "tags"}
                             (str "tag_" (:name tag))
-                            (some #(= (:tag_id tag) %) pic-tags))])
+                            (some #(= (:tag_id tag) %) pic-tags))]])
          (hf/text-field {:type "hidden" :value pic-id} "pic-id")
          [:br]
-         [:label "Add a new tag:"]
+         [:label "Add a new tag:"
          [:addr {:title "Separate multiple tags with ;"}
           [:input {:type        "text" :name "new-tag" :id "new-tag" :class "tags"
-                   :placeholder "New tag"}]]]
+                   :placeholder "New tag"}]]]]
         [:p]
         [:span.rating
          (hf/drop-down {:class "rating"} :rating
@@ -86,6 +86,12 @@
                     [:head
                      [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
                      [:link {:rel "stylesheet" :href "/css/w3.css?id=1234"}]
+                     [:meta {:http-equiv "cache-control" :content "no-cache, must-revalidate, post-check=0, pre-check=0"}]
+                     [:meta {:http-equiv "cache-control" :content "max-age=0"}]
+                     [:meta {:http-equiv "expires" :content "0"}]
+                     [:meta {:http-equiv "expires" :content "Tue, 01 Jan 1980 1:00:00 GMT"}]
+                     [:meta {:http-equiv "pragma" :content "no-cache"}]
+                     [:link {:rel "icon"  :href "http://ubuntupc.lan:4559/favicon-32x32.png"}]
                      [:title "Picture Details"]
                      ]
                     [:body
@@ -208,12 +214,11 @@
                    (keys)
                    (filter #(check-name %))
                    (map #(subs (name %) 4))
-                   ;;(map str/lower-case)
                    (map #(find-tag-id %))
                    (remove nil?))]
         ttt))
 
-(def allowed-str "abcdefghijklmnopqrstuvxyzåäö0123456789- ")
+(def allowed-str "abcdefghijklmnopqrstuvwxyzåäö0123456789- ")
 (def lc-allowed-chars (set (seq allowed-str)))
 (def allowed-chars (set/union lc-allowed-chars (str/upper-case allowed-str)))
 
@@ -222,7 +227,10 @@
     (try
         (let [params (get request :params {})
               new-tag (get params :new-tag "")
-              rating (get params :rating nil)
+              rating* (get params :rating nil)
+              rating (if (and rating* (not= rating* "No rating"))
+                          (Integer/parseInt rating*)
+                          nil)
               tag-ids (set (checked-tags params))
               pic-tag-ids (set (map :tag_id (get-pic-tags pic-id)))
               aaa (if (str/blank? new-tag)
@@ -230,10 +238,8 @@
                       (->> (str/split new-tag #";")
                            (map str/trim)
                            (remove str/blank?)
-                           ;;(map str/lower-case)
                            (remove #(< (count %) 2))
                            (filter #(every? (fn [s] (contains? allowed-chars s)) (seq %)))
-                           ;;(filter #(re-find #"^[a-zåäö]" %))
                            (filter #(nil? (find-tag-id %)))))
               ; Remove tags that are not in the current pic
               to-remove (set/difference pic-tag-ids tag-ids)

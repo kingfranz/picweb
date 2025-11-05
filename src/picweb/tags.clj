@@ -64,10 +64,10 @@
     [pic-id tag-name]
     {:pre [(int? pic-id) (string? tag-name)]
      :post [(or (nil? %) (int? %))]}
-    (if-let [tag-id (find-tag-id (str/lower-case tag-name))]
+    (if-let [tag-id (find-tag-id tag-name)]
         (when (assoc-tag pic-id tag-id)
             tag-id)
-        (let [new-tag-id (insert :tags {:name (str/lower-case tag-name)})]
+        (let [new-tag-id (insert :tags {:name tag-name})]
             (if new-tag-id
                 (let [res (insert :tag_m2m {:id pic-id, :tag_id new-tag-id})]
                     (if res
@@ -82,9 +82,9 @@
     [tag-name]
     {:pre [(string? tag-name)]
      :post [(or (nil? %) (int? %))]}
-    (if-let [tag-id (find-tag-id (str/lower-case tag-name))]
+    (if-let [tag-id (find-tag-id tag-name)]
         tag-id
-        (let [new-tag-id (insert :tags {:name (str/lower-case tag-name)})]
+        (let [new-tag-id (insert :tags {:name tag-name})]
             new-tag-id)))
 
 (defn disassoc-tag
@@ -107,6 +107,11 @@
          [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
          [:style "body {width: 50%;}"]
          [:link {:rel "stylesheet" :href "/css/w3.css"}]
+         [:meta {:http-equiv "cache-control" :content "no-cache, must-revalidate, post-check=0, pre-check=0"}]
+         [:meta {:http-equiv "cache-control" :content "max-age=0"}]
+         [:meta {:http-equiv "expires" :content "0"}]
+         [:meta {:http-equiv "expires" :content "Tue, 01 Jan 1980 1:00:00 GMT"}]
+         [:meta {:http-equiv "pragma" :content "no-cache"}]
          [:title "Tags"]
          ]
         [:body
@@ -114,34 +119,36 @@
                all-links (get-all-m2m)
                tags-with-extra (map #(assoc % :usage (count (filter (fn [ll] (= (:tag_id %) (:tag_id ll))) all-links))) all-tags)]
              [:div.w3-container
-             [:table.w3-table.w3-striped.w3-border.w3-small
+             [:table.w3-table.w3-border.w3-small
               [:tr
-               [:th "Name"]
-               [:th "ID"]
-               [:th "Num"]
-               [:th "Rename"]
-               [:th "Delete"]
+               [:th.bkg "Name"]
+               [:th.bkg "ID"]
+               [:th.bkg "Num"]
+               [:th.bkg "Rename"]
+               [:th.bkg "Delete"]
                ]
               (for [t tags-with-extra]
                   [:tr
                    (hf/form-to
                        [:post (str "/rename-tag/" (:tag_id t))]
-                       [:td (hf/text-field {:value (:name t) :id (str "name-" (:tag_id t))} (:name t))]
-                   [:td (:tag_id t)]
-                   [:td (:usage t)]
-                   [:td  (hf/submit-button "Rename")])
-                   [:td [:a {:href (str "/delete-tag/" (:tag_id t))}  "Del"]] ;[:button {:onclick "return confirm('Are you sure?')"}]]]
+                       [:td.bkg (hf/text-field {:value (:name t) :id (str "name-" (:tag_id t))} (:name t))]
+                   [:td.bkg (:tag_id t)]
+                   [:td.bkg (:usage t)]
+                   [:td.bkg  (hf/submit-button "Rename")])
+                   [:td.bkg [:a {:href (str "/delete-tag/" (:tag_id t))}  "Del"]] ;[:button {:onclick "return confirm('Are you sure?')"}]]]
                    ])]])
          [:p]
          [:p]
-         [:a {:href "/"} "Back to contact sheet"]
+         [:a.pagination {:href "/"} "Back to contact sheet"]
          ]))
 
 (defn rename-tag
     [tag-id request]
     (let [tag (get-tag tag-id)
           name (keyword (:name tag))
-          new-name (get-in request [:params name])]
+          nn1 (get-in request [:params name])
+          nn2 (get-in request [:params (:name tag)])
+          new-name (if (some? nn1) nn1 (if (some? nn2) nn2 (throw (Exception. "No new name provided"))))]
         (sql/update! ds-opts :tags {:name new-name} {:tag_id tag-id})
         (ring/redirect "/edit-tags?xx=567")))
 

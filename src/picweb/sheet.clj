@@ -31,25 +31,28 @@
          (hf/submit-button {:class "submit"} "Update")]))
 
 (defn- pagination
-    [offset num-thumbs]
-    (let [current (int (/ offset num-thumbs))]
+    [offset num-thumbs-per-page]
+    (let [current-page (int (/ offset num-thumbs-per-page))
+          prev-page (if (>= current-page 1) (dec current-page) 0)
+          prev-offset (if (> offset num-thumbs-per-page) (- offset num-thumbs-per-page) 0)]
         [:div.pagination1
          (when (> offset 0)
              [:span.pagination1
-              [:a.pagination {:href (str "/offset/" (dec current))} (str " " (dec current) " ")]])
+              [:a.pagination {:href (str "/offset/" prev-offset)} (str " " prev-page " ")]])
 
          [:span.pagination1
           [:abbr {:title (str "Enter a value < 500 for pagenunber\n"
                   "Between 500 and 40000 for imagenumber\n"
                   "Between 19700101 and 20251231 to search by date")}
-          [:input.pagination1 {:type "text" :id "current" :value current}]]
+          [:input.pagination1 {:type "text" :id "current-page" :value current-page}]]
           [:div {:id "message"}]
           [:button {:type "button" :id "button" :hidden true} "Go"]]
 
-         (let [post-pages (- num-thumbs current)]
+         (let [total-num-thumbs (get-num-thumbs)
+               post-pages (int (/ (- total-num-thumbs (* (inc current-page) num-thumbs-per-page)) num-thumbs-per-page))]
              (when (> post-pages 0)
                  [:span.pagination1
-                  [:a.pagination {:href (str "/offset/" (inc current))} (str " " (inc current) " ")]]))]))
+                  [:a.pagination {:href (str "/offset/" (+ offset num-thumbs-per-page))} (str " " (inc current-page) " ")]]))]))
 
 (defn contact-page
     [offset remote-addr]
@@ -62,6 +65,11 @@
                 [:head
                  [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
                  [:link {:rel "stylesheet" :href "/css/w3.css"}]
+                 [:meta {:http-equiv "cache-control" :content "no-cache, must-revalidate, post-check=0, pre-check=0"}]
+                 [:meta {:http-equiv "cache-control" :content "max-age=0"}]
+                 [:meta {:http-equiv "expires" :content "0"}]
+                 [:meta {:http-equiv "expires" :content "Tue, 01 Jan 1980 1:00:00 GMT"}]
+                 [:meta {:http-equiv "pragma" :content "no-cache"}]
                  [:title "Contact Sheet"]
                  ]
                 [:body
