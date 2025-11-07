@@ -1,6 +1,7 @@
 (ns picweb.sheet
     (:require [hiccup.form :as hf]
               [hiccup.page :as page]
+              [picweb.tags :refer :all]
               [picweb.thumbnails :refer :all]
               [ring.util.response :as ring]))
 
@@ -11,7 +12,9 @@
      (for [thumb thumbs]
          [:figure.contact-image
           [:a {:href (str "/pic/" (:id thumb))} [:img {:src (str "/thumb/" (:id thumb))}]]
-          [:figcaption.contact-text (subs (:timestr thumb) 0 10)]
+          [:figcaption.contact-text (str (subs (:timestr thumb) 0 10)
+                                         (if (has-tags? (:id thumb)) " T" "")
+                                         (if (:rating thumb) " R" ""))]
           ])])
 
 (defn clamp
@@ -76,6 +79,9 @@
                  [:h1 "Contact Sheet"]
                  (hf/text-field {:type "hidden" :id "numOfThumbs" :value (str num-thumbs)} (str num-thumbs))
                  (grid-form offset num-thumbs)
+                 [:div.wrapper
+                 [:a {:href "/filter"} "Filter"]
+                  ]
                  (contact-sheet pics)
                  (pagination offset num-thumbs)
                  [:script {:type "application/javascript" :src "/js/script.js"}]]))))

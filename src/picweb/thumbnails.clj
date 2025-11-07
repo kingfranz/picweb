@@ -61,6 +61,12 @@
     (let [res (sql/query ds-opts ["SELECT * FROM thumbnails WHERE ID = ?" id])]
         (first res)))
 
+(defn get-thumbs-by-tags
+    [tag-ids]
+    (let [target (apply str (interpose "," tag-ids))
+          res (sql/query ds-opts ["SELECT * from thumbnails WHERE ID IN (SELECT ID FROM tag_m2m WHERE tag_id IN (?))" target])]
+        res))
+
 (defn get-prev-thumb
     [id]
     {:pre [(int? id)]

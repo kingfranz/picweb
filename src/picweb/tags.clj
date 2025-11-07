@@ -60,6 +60,20 @@
                     false))
             false)))
 
+(defn has-tags?
+    [pic-id]
+    {:pre [(int? pic-id)]
+     :post [(boolean? %)]}
+    (let [res (sql/query ds-opts ["SELECT COUNT(*) AS cnt FROM tag_m2m WHERE id = ?" pic-id])]
+        (> (:cnt (first res)) 0)))
+
+(defn has-rating?
+    [pic-id]
+    {:pre [(int? pic-id)]
+     :post [(boolean? %)]}
+    (let [res (sql/query ds-opts ["SELECT COUNT(*) AS cnt FROM tag_m2m WHERE id = ?" pic-id])]
+        (> (:cnt (first res)) 0)))
+
 (defn save-tag
     [pic-id tag-name]
     {:pre [(int? pic-id) (string? tag-name)]

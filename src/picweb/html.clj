@@ -91,7 +91,7 @@
                      [:meta {:http-equiv "expires" :content "0"}]
                      [:meta {:http-equiv "expires" :content "Tue, 01 Jan 1980 1:00:00 GMT"}]
                      [:meta {:http-equiv "pragma" :content "no-cache"}]
-                     [:link {:rel "icon"  :href "http://ubuntupc.lan:4559/favicon-32x32.png"}]
+                     [:link {:rel "icon"  :href "http://ubuntupc.lan:4559/favicon.png"}]
                      [:title "Picture Details"]
                      ]
                     [:body

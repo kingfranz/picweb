@@ -7,7 +7,8 @@
                                    get-pic get-prev get-thumb-pic find-date four-oh-four
                                    pic-page update-tags rotate-left rotate-right]]
               [picweb.tags :refer [edit-tags rename-tag delete-tag]]
-              [picweb.sheet :refer [contact-page update-grid]]))
+              [picweb.sheet :refer [contact-page update-grid]]
+              [picweb.filter :refer [filter-page update-filter]]))
 
 (defn get-num
     [req k]
@@ -37,6 +38,12 @@
 
            (GET "/thumb/:num" request
                (get-thumb-pic (get-num request :uri)))
+
+           (GET "/filter" request
+               (filter-page (request :params)))
+
+           (POST "/update-filter" request
+               (update-filter (request :params)))
 
            (POST "/tagupdate/:num" request
                ;(println pic-id new-tag rating params)
