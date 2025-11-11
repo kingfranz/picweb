@@ -67,12 +67,15 @@
     (let [res (sql/query ds-opts ["SELECT COUNT(*) AS cnt FROM tag_m2m WHERE id = ?" pic-id])]
         (> (:cnt (first res)) 0)))
 
-(defn has-rating?
+(defn mk-tag-str
     [pic-id]
-    {:pre [(int? pic-id)]
-     :post [(boolean? %)]}
-    (let [res (sql/query ds-opts ["SELECT COUNT(*) AS cnt FROM tag_m2m WHERE id = ?" pic-id])]
-        (> (:cnt (first res)) 0)))
+    {:pre  [(int? pic-id)]
+     :post [(string? %)]}
+    (let [res (sql/query ds-opts ["SELECT name FROM tags WHERE tag_id IN (SELECT tag_id from tag_m2m WHERE ID = ?)" pic-id])
+          ret (if (empty? res)
+            ""
+            (apply str (interpose "," (map :name res))))]
+        ret))
 
 (defn save-tag
     [pic-id tag-name]
@@ -118,9 +121,9 @@
     []
     (page/html5
         [:head
-         [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
+         (page/include-css "/css/style.css")
          [:style "body {width: 50%;}"]
-         [:link {:rel "stylesheet" :href "/css/w3.css"}]
+         (page/include-css "/css/w3.css")
          [:meta {:http-equiv "cache-control" :content "no-cache, must-revalidate, post-check=0, pre-check=0"}]
          [:meta {:http-equiv "cache-control" :content "max-age=0"}]
          [:meta {:http-equiv "expires" :content "0"}]
@@ -145,7 +148,7 @@
                   [:tr
                    (hf/form-to
                        [:post (str "/rename-tag/" (:tag_id t))]
-                       [:td.bkg (hf/text-field {:value (:name t) :id (str "name-" (:tag_id t))} (:name t))]
+                       [:td.bkg (hf/text-field (keyword (str "name-" (:tag_id t))) (:name t))]
                    [:td.bkg (:tag_id t)]
                    [:td.bkg (:usage t)]
                    [:td.bkg  (hf/submit-button "Rename")])
@@ -158,11 +161,7 @@
 
 (defn rename-tag
     [tag-id request]
-    (let [tag (get-tag tag-id)
-          name (keyword (:name tag))
-          nn1 (get-in request [:params name])
-          nn2 (get-in request [:params (:name tag)])
-          new-name (if (some? nn1) nn1 (if (some? nn2) nn2 (throw (Exception. "No new name provided"))))]
+    (let [new-name (get-in request [:params (keyword (str "name-" tag-id))])]
         (sql/update! ds-opts :tags {:name new-name} {:tag_id tag-id})
         (ring/redirect "/edit-tags?xx=567")))
 

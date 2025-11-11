@@ -1,6 +1,6 @@
 var msg = document.getElementById("message");
 var button = document.getElementById("button");
-var textBox = document.getElementById("current");
+var textBox = document.getElementById("current-page");
 var numThumbs = Number(document.getElementById("numOfThumbs").value);
 
 // This event is fired when button is clicked

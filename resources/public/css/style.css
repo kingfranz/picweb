@@ -171,6 +171,34 @@ href.rotate {
     font-size: 30px;
 }
 
+.control-label {
+    margin: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    border: 1px dashed #ddd;
+    font-size: 20px;
+}
+
+.btn-group {
+    display: inline-block;
+    margin: 5px;
+}
+
+.rating-rb {
+    display: inline-block;
+    margin: 8px;
+}
+
+.simple {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #007bff;
+    font-size: 15px;
+    color: white;
+}
+
 .submit {
     display: inline-block;
     padding: 10px 20px 10px 20px;

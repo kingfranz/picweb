@@ -51,7 +51,8 @@
               (show-filters (code params))]
               (contact-sheet (if (empty? (code params))
                                  (get-thumbs 0 100)
-                                 (get-thumbs-by-tags (code params))))]))
+                                 (get-thumbs-by-tags (code params)))
+                             (fn [thumb] (mk-tag-str (:id thumb))))]))
 
 (defn update-filter
     [params]

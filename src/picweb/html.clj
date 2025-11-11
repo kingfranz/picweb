@@ -7,6 +7,7 @@
               [hiccup.page :as page]
               [picweb.thumbnails :refer :all]
               [picweb.tags :refer :all]
+              [picweb.extra :refer :all]
               [ring.util.response :as ring])
     )
 
@@ -37,25 +38,29 @@
               (hf/check-box {:class "tags"}
                             (str "tag_" (:name tag))
                             (some #(= (:tag_id tag) %) pic-tags))]])
-         (hf/text-field {:type "hidden" :value pic-id} "pic-id")
+         (hf/text-field {:type "hidden"} :pic-id pic-id)
          [:br]
          [:label "Add a new tag:"
          [:addr {:title "Separate multiple tags with ;"}
-          [:input {:type        "text" :name "new-tag" :id "new-tag" :class "tags"
-                   :placeholder "New tag"}]]]]
+          (hf/text-field {:placeholder "New tag(s)"} :new-tag)
+          ;[:input {:type        "text" :name "new-tag" :id "new-tag" :class "tags"
+          ;         :placeholder "New tag"}
+        ]]]
         [:p]
         [:span.rating
-         (hf/drop-down {:class "rating"} :rating
-                       [["No rating" "No rating"]
-                        ["Delete it!" "1"]
-                        ["Move it" "2"]
-                        ["Not great" "3"]
-                        ["Average" "4"]
-                        ["Great" "5"]]
-                       (if (:rating pic)
-                           (str (:rating pic))
-                           "No rating"))
+         (show-rating (:rating pic))
+         ;(hf/drop-down {:class "rating"} :rating
+         ;              [["No rating" "No rating"]
+         ;               ["Delete it!" "1"]
+         ;               ["Move it" "2"]
+         ;               ["Not great" "3"]
+         ;               ["Average" "4"]
+         ;               ["Great" "5"]]
+         ;              (if (:rating pic)
+         ;                  (str (:rating pic))
+         ;                  "No rating"))
          ]
+        [:p]
         (hf/submit-button {:class "submit"} "Update!")))
 
 (defn- pic-and-info
@@ -84,8 +89,8 @@
                   pic-tags (map :tag_id (get-pic-tags pic-id))]
                 (page/html5
                     [:head
-                     [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
-                     [:link {:rel "stylesheet" :href "/css/w3.css?id=1234"}]
+                     (page/include-css "/css/style.css")
+                     (page/include-css "/css/w3.css")
                      [:meta {:http-equiv "cache-control" :content "no-cache, must-revalidate, post-check=0, pre-check=0"}]
                      [:meta {:http-equiv "cache-control" :content "max-age=0"}]
                      [:meta {:http-equiv "expires" :content "0"}]
@@ -227,10 +232,7 @@
     (try
         (let [params (get request :params {})
               new-tag (get params :new-tag "")
-              rating* (get params :rating nil)
-              rating (if (and rating* (not= rating* "No rating"))
-                          (Integer/parseInt rating*)
-                          nil)
+              rating (r2i (get params :rating-grp nil))
               tag-ids (set (checked-tags params))
               pic-tag-ids (set (map :tag_id (get-pic-tags pic-id)))
               aaa (if (str/blank? new-tag)
@@ -274,8 +276,8 @@
     (page/html5
         [:head
          [:title "404 Not Found"]
-         [:link {:rel "stylesheet" :href "/css/style.css"}]
-         [:link {:rel "stylesheet" :href "/css/w3.css"}]]
+         (page/include-css "/css/style.css")
+         (page/include-css "/css/w3.css")]
         [:body
          [:h1 "404 Not Found"]
          [:p "The page you are looking for does not exist."]]))

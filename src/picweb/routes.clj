@@ -8,7 +8,8 @@
                                    pic-page update-tags rotate-left rotate-right]]
               [picweb.tags :refer [edit-tags rename-tag delete-tag]]
               [picweb.sheet :refer [contact-page update-grid]]
-              [picweb.filter :refer [filter-page update-filter]]))
+              [picweb.filter :refer [filter-page update-filter]]
+              [picweb.bulk :refer [bulk-page bulk-update]]))
 
 (defn get-num
     [req k]
@@ -39,6 +40,16 @@
            (GET "/thumb/:num" request
                (get-thumb-pic (get-num request :uri)))
 
+           (GET "/bulk/:num" request
+               (bulk-page (get-num request :uri)
+                          (:remote-addr request)))
+
+           (GET "/bulk" request
+               (bulk-page 0 (:remote-addr request)))
+
+           (POST "/bulk-tag-update" request
+               (bulk-update (request :params)))
+
            (GET "/filter" request
                (filter-page (request :params)))
 
@@ -49,10 +60,13 @@
                ;(println pic-id new-tag rating params)
                (update-tags (get-num request :uri) request))
 
-           (POST "/gridupdate/:num" request
-               (update-grid (get-num request :uri)
-                            (get-num request :num_per_page)
-                            (:remote-addr request)))
+           (POST "/gridupdate" request
+               (let [params (request :params)
+                     offset (Integer/parseInt (get params :offset 0))
+                     num_per_page (Integer/parseInt (get params :num_per_page "25"))
+                     remote-addr (:remote-addr request)
+                     owner (get params :owner "unknown")]
+               (update-grid offset num_per_page remote-addr owner)))
 
            (POST "/rename-tag/:tag-id" request
                (rename-tag (get-num request :uri) request))
@@ -82,15 +96,6 @@
                (find-date (get-num request :uri)
                           (:remote-addr request)))
 
-           ;(GET "/css/style.css" []
-           ;    (get-css))
-           ;
-           ;(GET "/css/w3.css" []
-           ;    (get-css2))
-           ;
-           ;(GET "/script.js" []
-           ;    (get-script))
-
            (route/resources "/")
-           (route/not-found
-               (four-oh-four)))
+
+           (ANY "*" [] (route/not-found (four-oh-four))))

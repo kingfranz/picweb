@@ -7,15 +7,19 @@
 
 
 (defn contact-sheet
-    [thumbs]
+    ([thumbs tool-tip]
+     (contact-sheet thumbs tool-tip (fn [thumb] (str (subs (:timestr thumb) 0 10)
+                                            (if (has-tags? (:id thumb)) " T" "")
+                                            (if (:rating thumb) " R" "")))))
+    ([thumbs tool-tip caption]
     [:div.contact-sheet
-     (for [thumb thumbs]
+     (for [thumb thumbs
+           :let [tt (tool-tip thumb)]]
          [:figure.contact-image
-          [:a {:href (str "/pic/" (:id thumb))} [:img {:src (str "/thumb/" (:id thumb))}]]
-          [:figcaption.contact-text (str (subs (:timestr thumb) 0 10)
-                                         (if (has-tags? (:id thumb)) " T" "")
-                                         (if (:rating thumb) " R" ""))]
-          ])])
+          [:addr {:title tt}
+           [:a {:href (str "/pic/" (:id thumb))} [:img {:src (str "/thumb/" (:id thumb))}]]]
+          [:figcaption.contact-text (caption thumb)]
+          ])]))
 
 (defn clamp
     [n min-val max-val]
@@ -24,12 +28,14 @@
         (> n max-val) max-val
         :else n))
 
-(defn- grid-form
-    [offset num-thumbs]
+(defn grid-form
+    [offset num-thumbs owner]
     (hf/form-to
-        [:post (str "/gridupdate/" offset)]
+        [:post "/gridupdate"]
+        (hf/text-field {:type "hidden"} :offset (str offset))
+        (hf/text-field {:type "hidden"} :owner owner)
         [:span
-         [:label "Pictures per page: "
+         [:label.simple "Pictures per page: "
           (hf/text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
          (hf/submit-button {:class "submit"} "Update")]))
 
@@ -47,9 +53,9 @@
           [:abbr {:title (str "Enter a value < 500 for pagenunber\n"
                   "Between 500 and 40000 for imagenumber\n"
                   "Between 19700101 and 20251231 to search by date")}
-          [:input.pagination1 {:type "text" :id "current-page" :value current-page}]]
-          [:div {:id "message"}]
-          [:button {:type "button" :id "button" :hidden true} "Go"]]
+          [:input#current-page.pagination1 {:type "text"} current-page]]
+          [:div#message]
+          [:button#button {:hidden true} "Go"]]
 
          (let [total-num-thumbs (get-num-thumbs)
                post-pages (int (/ (- total-num-thumbs (* (inc current-page) num-thumbs-per-page)) num-thumbs-per-page))]
@@ -66,8 +72,8 @@
             [:div "No pictures found."]
             (page/html5
                 [:head
-                 [:link {:rel "stylesheet" :href "/css/style.css?id=1234"}]
-                 [:link {:rel "stylesheet" :href "/css/w3.css"}]
+                 (page/include-css "/css/style.css")
+                 (page/include-css "/css/w3.css")
                  [:meta {:http-equiv "cache-control" :content "no-cache, must-revalidate, post-check=0, pre-check=0"}]
                  [:meta {:http-equiv "cache-control" :content "max-age=0"}]
                  [:meta {:http-equiv "expires" :content "0"}]
@@ -77,23 +83,26 @@
                  ]
                 [:body
                  [:h1 "Contact Sheet"]
-                 (hf/text-field {:type "hidden" :id "numOfThumbs" :value (str num-thumbs)} (str num-thumbs))
-                 (grid-form offset num-thumbs)
+                 (hf/text-field {:type "hidden"} :numOfThumbs (str num-thumbs))
+                 (grid-form offset num-thumbs "offset")
                  [:div.wrapper
                  [:a {:href "/filter"} "Filter"]
                   ]
-                 (contact-sheet pics)
+                 [:div.wrapper
+                  [:a {:href "/bulk"} "Bulk tagging"]
+                  ]
+                 (contact-sheet pics (fn [thumb] (mk-tag-str (:id thumb))))
                  (pagination offset num-thumbs)
                  [:script {:type "application/javascript" :src "/js/script.js"}]]))))
 
 ;;---------------------------------------------------------------------------
 
 (defn update-grid
-    [offset num-pics remote-addr]
-    (if (some? num-pics)
+    [offset num-pics remote-addr owner]
+    (if (and (some? num-pics) (integer? num-pics) (> num-pics 10) (<= num-pics 500))
         (do
             (save-grid remote-addr num-pics)
-            (ring/redirect (str "/offset/" offset) 303))
+            (ring/redirect (str "/" owner "&offset=" offset) 303))
         (ring/response "Invalid parameters.")))
 
 ;;---------------------------------------------------------------------------
