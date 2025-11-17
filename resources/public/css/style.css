@@ -6,7 +6,7 @@ body {
     margin: 0;
     padding: 0;
     background-image: url("inflicted.png");
-    color: #333;
+    color: white;
     background-repeat: repeat;
 }
 
@@ -96,16 +96,16 @@ div.pagination1 {
 
 span.pagination1 {
    font-size: 25px;
-       /* text-align: center;
-    margin: auto;
-    display: inline-block;*/
+   text-align: center;
+   margin: auto;
+   display: inline-block;
 }
 
 input.pagination1 {
    font-size: 25px;
-       /* text-align: center;
-    margin: auto;
-    display: inline-block;*/
+   text-align: center;
+   margin: auto;
+   display: inline-block;
 }
 
 a.pagination {
@@ -173,12 +173,15 @@ href.rotate {
 
 .control-label {
     margin: 20px;
+    font-size: 20px;
+    color: white;
 }
 
 .form-group {
     margin-bottom: 20px;
     border: 1px dashed #ddd;
     font-size: 20px;
+    color: white;
 }
 
 .btn-group {
@@ -191,10 +194,32 @@ href.rotate {
     margin: 8px;
 }
 
+.rating-cb {
+    display: inline-block;
+    margin: 8px;
+    color: yellow;
+}
+
+.rating-lbl {
+    display: inline-block;
+    margin: 8px;
+    font-size: 20px;
+    color: white;
+}
+
 .simple {
     display: inline-block;
     padding: 10px 20px;
     background-color: #007bff;
+    font-size: 15px;
+    color: white;
+}
+
+div.help {
+    /*display: inline-block;*/
+    padding-top: 40px;
+    padding-bottom: 40px;
+    /*background-color: black;*/
     font-size: 15px;
     color: white;
 }

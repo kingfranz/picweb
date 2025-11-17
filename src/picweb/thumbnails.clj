@@ -67,6 +67,25 @@
           res (sql/query ds-opts ["SELECT * from thumbnails WHERE ID IN (SELECT ID FROM tag_m2m WHERE tag_id IN (?))" target])]
         res))
 
+(defn get-thumbs-by-rating
+    [ratings]
+    (let [target (apply str (interpose "," ratings))
+          res (sql/query ds-opts ["SELECT * from thumbnails WHERE rating IN (?)" target])]
+        res))
+
+(defn get-filtered-thumbs
+    [selected]
+    (cond
+        (and (empty? (:tags selected)) (empty? (:ratings selected))) (get-thumbs 0 100)
+        (empty? (:tags selected)) (get-thumbs-by-rating (:ratings selected))
+        (empty? (:ratings selected)) (get-thumbs-by-tags (:tags selected))
+        :else (let [by-tags (set (get-thumbs-by-tags (:tags selected)))
+                    by-ratings (set (get-thumbs-by-rating (:ratings selected)))
+                    intersect (clojure.set/intersection by-tags by-ratings)]
+                ;(get-thumbs-by-tags intersect)
+        intersect)))
+
+
 (defn get-prev-thumb
     [id]
     {:pre [(int? id)]

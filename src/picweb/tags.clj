@@ -1,10 +1,7 @@
 (ns picweb.tags
-    (:require [clojure.string :as str]
-              [hiccup.page :as page]
-              [hiccup.form :as hf]
+    (:require [hiccup.page :as page]
+              [hiccup.form :refer :all]
               [picweb.thumbnails :refer :all]
-              [next.jdbc :as jdbc]
-              [next.jdbc.result-set :as rs]
               [next.jdbc.sql :as sql]
               [ring.util.response :as ring]))
 
@@ -146,12 +143,12 @@
                ]
               (for [t tags-with-extra]
                   [:tr
-                   (hf/form-to
+                   (form-to
                        [:post (str "/rename-tag/" (:tag_id t))]
-                       [:td.bkg (hf/text-field (keyword (str "name-" (:tag_id t))) (:name t))]
+                       [:td.bkg (text-field (keyword (str "name-" (:tag_id t))) (:name t))]
                    [:td.bkg (:tag_id t)]
                    [:td.bkg (:usage t)]
-                   [:td.bkg  (hf/submit-button "Rename")])
+                   [:td.bkg  (submit-button "Rename")])
                    [:td.bkg [:a {:href (str "/delete-tag/" (:tag_id t))}  "Del"]] ;[:button {:onclick "return confirm('Are you sure?')"}]]]
                    ])]])
          [:p]

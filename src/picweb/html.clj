@@ -3,7 +3,7 @@
               [clojure.pprint :as pp]
               [clojure.set :as set]
               [clojure.string :as str]
-              [hiccup.form :as hf]
+              [hiccup.form :refer :all]
               [hiccup.page :as page]
               [picweb.thumbnails :refer :all]
               [picweb.tags :refer :all]
@@ -29,39 +29,23 @@
 
 (defn- tag-and-rate
     [all-tags pic-tags pic-id pic]
-    (hf/form-to
+    (form-to
         [:post (str "/tagupdate/" pic-id)]
         [:div.tags
-         (for [tag (sort-by :name all-tags)]
-             [:span.tags
-              [:label.tags (:name tag)
-              (hf/check-box {:class "tags"}
-                            (str "tag_" (:name tag))
-                            (some #(= (:tag_id tag) %) pic-tags))]])
-         (hf/text-field {:type "hidden"} :pic-id pic-id)
+         (show-filters {:tags (set pic-tags)} check-box)
+         [:p]
+         (hidden-field :pic-id pic-id)
          [:br]
          [:label "Add a new tag:"
          [:addr {:title "Separate multiple tags with ;"}
-          (hf/text-field {:placeholder "New tag(s)"} :new-tag)
-          ;[:input {:type        "text" :name "new-tag" :id "new-tag" :class "tags"
-          ;         :placeholder "New tag"}
+          (text-field {:placeholder "New tag(s)"} :new-tag)
         ]]]
         [:p]
         [:span.rating
-         (show-rating (:rating pic))
-         ;(hf/drop-down {:class "rating"} :rating
-         ;              [["No rating" "No rating"]
-         ;               ["Delete it!" "1"]
-         ;               ["Move it" "2"]
-         ;               ["Not great" "3"]
-         ;               ["Average" "4"]
-         ;               ["Great" "5"]]
-         ;              (if (:rating pic)
-         ;                  (str (:rating pic))
-         ;                  "No rating"))
+         (show-rating {:ratings #{ (:rating pic)}} radio-button)
          ]
         [:p]
-        (hf/submit-button {:class "submit"} "Update!")))
+        (submit-button {:class "submit"} "Update!")))
 
 (defn- pic-and-info
     [pic pic-id]
@@ -146,7 +130,7 @@
                 (if (= 0 (:exit result))
                     ; if the command was successful, create a thumbnail
                     (let [tn-file (mk-tn-name (get-thumb pic-id))
-                          tn-cmd (str "convert " img-path " -auto-orient -thumbnail 200x200^ -gravity center -extent 200x200 " tn-file)
+                          tn-cmd (str "convert " img-path " -auto-orient -thumbnail 150x150^ -gravity center -extent 150x150 " tn-file)
                           tn-result (sh "bash" "-c" tn-cmd)]
                         (if (= 0 (:exit tn-result))
                             ; if thumbnail creation was successful, update DB

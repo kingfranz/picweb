@@ -39,6 +39,7 @@
                       thpath (mk-tn-name t)]
                 :when [(or (not (.exists (io/file fpath)))
                            (not (.exists (io/file thpath))))]]
+            (println "Checking DB entry and thumbnail:" thpath)
             (cond
                 (and (.exists (io/file thpath)) (not (.exists (io/file fpath))))
                 (do
@@ -49,7 +50,7 @@
                 (and (.exists (io/file fpath)) (not (.exists (io/file thpath))))
                 (do
                     (println "missing  thumbnail, but no action for now")
-                    (let [cmd (str "convert " fpath " -auto-orient -thumbnail 200x200^ -gravity center -extent 200x200 " thpath)
+                    (let [cmd (str "convert " fpath " -auto-orient -thumbnail 150x150^ -gravity center -extent 150x150 " thpath)
                           res (sh "bash" "-c" cmd)
                           ]
                         (if (= 0 (:exit res))

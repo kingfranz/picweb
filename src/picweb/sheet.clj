@@ -1,5 +1,5 @@
 (ns picweb.sheet
-    (:require [hiccup.form :as hf]
+    (:require [hiccup.form :refer :all]
               [hiccup.page :as page]
               [picweb.tags :refer :all]
               [picweb.thumbnails :refer :all]
@@ -21,47 +21,40 @@
           [:figcaption.contact-text (caption thumb)]
           ])]))
 
-(defn clamp
-    [n min-val max-val]
-    (cond
-        (< n min-val) min-val
-        (> n max-val) max-val
-        :else n))
-
 (defn grid-form
     [offset num-thumbs owner]
-    (hf/form-to
+    (form-to
         [:post "/gridupdate"]
-        (hf/text-field {:type "hidden"} :offset (str offset))
-        (hf/text-field {:type "hidden"} :owner owner)
+        (hidden-field :offset (str offset))
+        (hidden-field :owner owner)
         [:span
          [:label.simple "Pictures per page: "
-          (hf/text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
-         (hf/submit-button {:class "submit"} "Update")]))
+          (text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
+         (submit-button {:class "submit"} "Update")]))
 
 (defn- pagination
     [offset num-thumbs-per-page]
     (let [current-page (int (/ offset num-thumbs-per-page))
           prev-page (if (>= current-page 1) (dec current-page) 0)
           prev-offset (if (> offset num-thumbs-per-page) (- offset num-thumbs-per-page) 0)]
-        [:div.pagination1
+        [:div
          (when (> offset 0)
              [:span.pagination1
               [:a.pagination {:href (str "/offset/" prev-offset)} (str " " prev-page " ")]])
 
          [:span.pagination1
-          [:abbr {:title (str "Enter a value < 500 for pagenunber\n"
-                  "Between 500 and 40000 for imagenumber\n"
-                  "Between 19700101 and 20251231 to search by date")}
-          [:input#current-page.pagination1 {:type "text"} current-page]]
-          [:div#message]
-          [:button#button {:hidden true} "Go"]]
+          [:input.pagination1 {:type "text" :id "current-page" :value current-page}]
+          [:div {:id "message"}]
+          [:button {:type "button" :id "button" :hidden true} "Go"]]
 
          (let [total-num-thumbs (get-num-thumbs)
                post-pages (int (/ (- total-num-thumbs (* (inc current-page) num-thumbs-per-page)) num-thumbs-per-page))]
              (when (> post-pages 0)
                  [:span.pagination1
-                  [:a.pagination {:href (str "/offset/" (+ offset num-thumbs-per-page))} (str " " (inc current-page) " ")]]))]))
+                  [:a.pagination {:href (str "/offset/" (+ offset num-thumbs-per-page))} (str " " (inc current-page) " ")]]))
+         [:div.help (str "Enter a value < 500 for pagenunber\n"
+                         "Between 500 and 40000 for imagenumber\n"
+                         "Between 19700101 and 20251231 to search by date")]]))
 
 (defn contact-page
     [offset remote-addr]
@@ -83,7 +76,7 @@
                  ]
                 [:body
                  [:h1 "Contact Sheet"]
-                 (hf/text-field {:type "hidden"} :numOfThumbs (str num-thumbs))
+                 (hidden-field :numOfThumbs (str num-thumbs))
                  (grid-form offset num-thumbs "offset")
                  [:div.wrapper
                  [:a {:href "/filter"} "Filter"]

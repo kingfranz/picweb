@@ -1,10 +1,11 @@
 (ns picweb.bulk
     (:require [clojure.string :as str]
-              [hiccup.form :as hf]
+              [hiccup.form :refer :all]
               [hiccup.page :as page]
               [picweb.sheet :refer [contact-sheet grid-form]]
               [picweb.tags :refer :all]
               [picweb.thumbnails :refer :all]
+              [picweb.extra :refer [show-filters]]
               [ring.util.response :as ring]))
 
 (defn bulk-page
@@ -28,21 +29,16 @@
                   [:a.simple {:href (str "/bulk/&offset=" (+ offset num-thumbs))} (str " Go " num-thumbs " forward")]
                   ]
                  [:div
-                  (hf/form-to
+                  (form-to
                       [:post "/bulk-tag-update"]
-                      (hf/text-field {:type "hidden"} :numOfThumbs (str num-thumbs))
-                      [:div.tags
-                       (for [tag (sort-by :name (get-all-tags))]
-                           [:span.tags
-                            [:label.tags (:name tag)
-                             (hf/check-box {:class "tags"}
-                                           (str "tag_" (:tag_id tag)))]])]
+                      (hidden-field :numOfThumbs (str num-thumbs))
+                      [:div (show-filters {:tags #{}} check-box)]
                       [:hr]
                       (contact-sheet pics
                                      (fn [thumb] (mk-tag-str (:id thumb))) ; tooltip
-                                     (fn [thumb] [:span (hf/check-box {:class "tags"} ; caption
+                                     (fn [thumb] [:span (check-box {:class "tags"} ; caption
                                                                       (str "img_" (:id thumb))) (if (has-tags? (:id thumb)) " T" "")]))
-                      (hf/submit-button {:class "submit"} "Apply to selected Pictures")
+                      (submit-button {:class "submit"} "Apply to selected Pictures")
                       )]
                  ]))))
 
