@@ -7,7 +7,6 @@
               [ring.middleware.cookies :refer [wrap-cookies]]
               [ring.middleware.keyword-params :refer [wrap-keyword-params]]
               [ring.middleware.params :refer [wrap-params]]
-              [ring.middleware.resource :refer [wrap-resource]]
               [ring.middleware.stacktrace :refer [wrap-stacktrace]])
     (:use [org.httpkit.server :only [run-server]])
     (:gen-class))
@@ -31,38 +30,57 @@
         ;(route/not-found (four-oh-four))
         ))
 
+(defn- th-path
+    [thumb]
+    (mk-tn-name thumb))
+
+(defn- f-path
+    [thumb]
+    (str (:path thumb) "/" (:filename thumb)))
+
+(defn- th-path?
+    [thumb]
+    (.exists (io/file (th-path thumb))))
+
+(defn- f-path?
+    [thumb]
+    (.exists (io/file (f-path thumb))))
+
 (defn- cleanup
     []
-    (let [thumbs (get-all-thumbs)]
-        (doseq [t thumbs
-                :let [fpath (str (:path t) "/" (:filename t))
-                      thpath (mk-tn-name t)]
-                :when [(or (not (.exists (io/file fpath)))
-                           (not (.exists (io/file thpath))))]]
-            (println "Checking DB entry and thumbnail:" thpath)
-            (cond
-                (and (.exists (io/file thpath)) (not (.exists (io/file fpath))))
-                (do
-                    (println "Deleting orphaned DB entry and thumbnail:" thpath)
-                    (.delete (io/file thpath))
-                    (delete-thumb (:id t))
-                    )
-                (and (.exists (io/file fpath)) (not (.exists (io/file thpath))))
-                (do
-                    (println "missing  thumbnail, but no action for now")
-                    (let [cmd (str "convert " fpath " -auto-orient -thumbnail 150x150^ -gravity center -extent 150x150 " thpath)
-                          res (sh "bash" "-c" cmd)
-                          ]
-                        (if (= 0 (:exit res))
-                            (println "Thumbnail recreated successfully for" fpath)
-                            (println "Error recreating thumbnail for" fpath ":" (:err res))))
-                    )
-                (and (not (.exists (io/file fpath))) (not (.exists (io/file thpath))))
-                (do
-                    (println "both missing: " fpath " " (.exists (io/file fpath)))
-                    (println "both missing: " thpath " " (.exists (io/file thpath)))
-                    (delete-thumb (:id t))
-                    )))))
+    (let [dry-run false
+          thumbs (get-all-thumbs)]
+        ; are both missing?
+        (doseq [t (filter #(and (not (f-path? %)) (not (th-path? %))) thumbs)]
+            (println "both missing: " (f-path t))
+            (when-not dry-run
+                (delete-thumb (:id t))))
+
+        ; orphaned thumbnail file
+        (doseq [t (filter #(and (not (f-path? %)) (not (th-path? %))) thumbs)]
+            (println "Deleting orphaned DB entry and thumbnail:" (th-path t))
+            (when-not dry-run
+                (.delete (io/file (th-path t)))
+                (delete-thumb (:id t))))
+
+        ; missing thumbnail file
+        (doseq [t (filter #(and (not (f-path? %)) (not (th-path? %))) thumbs)]
+            (println "missing  thumbnail, recreateing for:" (f-path t))
+            (when-not dry-run
+                (let [cmd (str "convert " (f-path t) " -auto-orient -thumbnail 150x150^ -gravity center -extent 150x150 " (th-path t))
+                      res (sh "bash" "-c" cmd)]
+                    (if (= 0 (:exit res))
+                        (println "Thumbnail recreated successfully for" (f-path t))
+                        (println "Error recreating thumbnail for" (f-path t) ":" (:err res))))
+                ))
+        ; delete if rated 1 (=delete it)
+        (doseq [t (filter #(= (:rating %) 1) thumbs)]
+            (println "Deleting:" (f-path t) (:rating t))
+            (when-not dry-run
+                (.delete (io/file (th-path t)))
+                (.delete (io/file (f-path t)))
+                (delete-thumb (:id t)))
+            )))
 
 (defn -main
     "Main entry point for the PicWeb application."
