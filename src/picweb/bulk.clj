@@ -3,16 +3,15 @@
               [hiccup.form :refer :all]
               [hiccup.page :as page]
               [picweb.sheet :refer [contact-sheet grid-form]]
-              [picweb.tags :refer :all]
-              [picweb.thumbnails :refer :all]
-              [picweb.extra :refer [show-filters]]
+              [picweb.tags :refer [mk-tag-str has-tags? assoc-tag]]
+              [picweb.thumbnails :refer [get-grid get-thumbs]]
+              [picweb.extra :refer [show-filters pagination]]
               [ring.util.response :as ring]))
 
 (defn bulk-page
     [offset remote-addr]
-    (let [num-thumbs* (get-grid remote-addr)
-          num-thumbs (if (nil? num-thumbs*) 25 num-thumbs*)
-          pics (get-thumbs offset num-thumbs)]
+    (let [num-thumbs (get-grid remote-addr)
+          pics (get-thumbs offset :offset num-thumbs)]
         (if (empty? pics)
             [:div "No pictures found."]
             (page/html5
@@ -23,15 +22,18 @@
                 [:body
                  [:h1 "Select Tag(s) and Pictures to apply to"]
                  [:h2.submit [:a {:href "/"} "Back to Contact Sheet"]]
-                 [:span
-                  (grid-form offset num-thumbs "bulk")
-                  [:a.simple {:href (str "/bulk/&offset=" (if (> offset num-thumbs) (- offset num-thumbs) 0))} (str " Go " num-thumbs " back")]
-                  [:a.simple {:href (str "/bulk/&offset=" (+ offset num-thumbs))} (str " Go " num-thumbs " forward")]
-                  ]
+                 (hidden-field :numOfThumbs (str num-thumbs))
+                 [:table
+                  [:tr
+                   [:td (grid-form offset num-thumbs "bulk")]
+                   [:td (pagination offset num-thumbs "bulk")]
+                   ]]
+                 [:script {:type "application/javascript" :src "/js/script.js"}]
                  [:div
                   (form-to
                       [:post "/bulk-tag-update"]
                       (hidden-field :numOfThumbs (str num-thumbs))
+                      (hidden-field :offset (str offset))
                       [:div (show-filters {:tags #{}} check-box)]
                       [:hr]
                       (contact-sheet pics
@@ -51,5 +53,5 @@
         (doseq [img-id selected-imgs
                 tag-id selected-tags]
             (assoc-tag img-id tag-id))
-        (ring/redirect "/bulk")))
+        (ring/redirect (str "/bulk?offset=" (get params :offset 0)))))
 

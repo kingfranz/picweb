@@ -1,7 +1,7 @@
 (ns picweb.tags
     (:require [hiccup.page :as page]
               [hiccup.form :refer :all]
-              [picweb.thumbnails :refer :all]
+              [picweb.thumbnails :refer [ds-opts insert]]
               [next.jdbc.sql :as sql]
               [ring.util.response :as ring]))
 
@@ -38,12 +38,21 @@
             nil
             (:tag_id (first res)))))
 
+(defn has-tag?
+    [pic-id tag-id]
+    {:pre [(int? pic-id) (int? tag-id)]
+     :post [(boolean? %)]}
+    (let [res (sql/query ds-opts ["SELECT * FROM tag_m2m WHERE id = ? AND tag_id = ?" pic-id tag-id])]
+        (seq res)))
+
 (defn assoc-tag
     [pic-id tag-id]
     {:pre [(int? pic-id) (int? tag-id)]
      :post [(or (nil? %) (int? %))]}
-    (let [res (insert :tag_m2m {:id pic-id, :tag_id tag-id})]
-        res))
+    (if (has-tag? pic-id tag-id)
+        tag-id
+        (let [res (insert :tag_m2m {:id pic-id, :tag_id tag-id})]
+            res)))
 
 (defn delete-tag-from-db
     [tag-id]
@@ -144,12 +153,12 @@
               (for [t tags-with-extra]
                   [:tr
                    (form-to
-                       [:post (str "/rename-tag/" (:tag_id t))]
+                       [:post (str "/rename-tag?tag-id=" (:tag_id t))]
                        [:td.bkg (text-field (keyword (str "name-" (:tag_id t))) (:name t))]
                    [:td.bkg (:tag_id t)]
                    [:td.bkg (:usage t)]
                    [:td.bkg  (submit-button "Rename")])
-                   [:td.bkg [:a {:href (str "/delete-tag/" (:tag_id t))}  "Del"]] ;[:button {:onclick "return confirm('Are you sure?')"}]]]
+                   [:td.bkg [:a {:href (str "/delete-tag?tag-id=" (:tag_id t))}  "Del"]] ;[:button {:onclick "return confirm('Are you sure?')"}]]]
                    ])]])
          [:p]
          [:p]
@@ -160,7 +169,7 @@
     [tag-id request]
     (let [new-name (get-in request [:params (keyword (str "name-" tag-id))])]
         (sql/update! ds-opts :tags {:name new-name} {:tag_id tag-id})
-        (ring/redirect "/edit-tags?xx=567")))
+        (ring/redirect "/edit-tags")))
 
 (defn delete-tag
     [tag-id]

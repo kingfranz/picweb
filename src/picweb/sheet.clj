@@ -1,8 +1,9 @@
 (ns picweb.sheet
     (:require [hiccup.form :refer :all]
               [hiccup.page :as page]
-              [picweb.tags :refer :all]
-              [picweb.thumbnails :refer :all]
+              [picweb.tags :refer [mk-tag-str has-tags?]]
+              [picweb.thumbnails :refer [get-grid get-thumbs save-grid]]
+              [picweb.extra :refer [pagination]]
               [ring.util.response :as ring]))
 
 
@@ -17,7 +18,7 @@
            :let [tt (tool-tip thumb)]]
          [:figure.contact-image
           [:addr {:title tt}
-           [:a {:href (str "/pic/" (:id thumb))} [:img {:src (str "/thumb/" (:id thumb))}]]]
+           [:a {:href (str "/pic?pic-id=" (:id thumb))} [:img {:src (str "/thumb?pic-id=" (:id thumb))}]]]
           [:figcaption.contact-text (caption thumb)]
           ])]))
 
@@ -32,35 +33,17 @@
           (text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
          (submit-button {:class "submit"} "Update")]))
 
-(defn- pagination
-    [offset num-thumbs-per-page]
-    (let [current-page (int (/ offset num-thumbs-per-page))
-          prev-page (if (>= current-page 1) (dec current-page) 0)
-          prev-offset (if (> offset num-thumbs-per-page) (- offset num-thumbs-per-page) 0)]
-        [:div
-         (when (> offset 0)
-             [:span.pagination1
-              [:a.pagination {:href (str "/offset/" prev-offset)} (str " " prev-page " ")]])
-
-         [:span.pagination1
-          [:input.pagination1 {:type "text" :id "current-page" :value current-page}]
-          [:div {:id "message"}]
-          [:button {:type "button" :id "button" :hidden true} "Go"]]
-
-         (let [total-num-thumbs (get-num-thumbs)
-               post-pages (int (/ (- total-num-thumbs (* (inc current-page) num-thumbs-per-page)) num-thumbs-per-page))]
-             (when (> post-pages 0)
-                 [:span.pagination1
-                  [:a.pagination {:href (str "/offset/" (+ offset num-thumbs-per-page))} (str " " (inc current-page) " ")]]))
-         [:div.help (str "Enter a value < 500 for pagenunber\n"
-                         "Between 500 and 40000 for imagenumber\n"
-                         "Between 19700101 and 20251231 to search by date")]]))
+(defn- thumb2int
+    [thumb]
+    (Integer/parseInt (str (subs (:timestr thumb) 0 4)
+                           (subs (:timestr thumb) 5 7)
+                           (subs (:timestr thumb) 8 10))))
 
 (defn contact-page
-    [offset remote-addr]
-    (let [num-thumbs* (get-grid remote-addr)
-          num-thumbs (if (nil? num-thumbs*) 25 num-thumbs*)
-          pics (get-thumbs offset num-thumbs)]
+    [value value-type remote-addr]
+    (let [num-thumbs (get-grid remote-addr)
+          pics (get-thumbs value value-type num-thumbs)
+          offset (thumb2int (first pics))]
         (if (empty? pics)
             [:div "No pictures found."]
             (page/html5
@@ -77,7 +60,13 @@
                 [:body
                  [:h1 "Contact Sheet"]
                  (hidden-field :numOfThumbs (str num-thumbs))
-                 (grid-form offset num-thumbs "offset")
+                 [:table
+                  [:tr
+                   [:td (grid-form offset num-thumbs "offset")]
+                   [:td (pagination offset num-thumbs "offset")]
+                   ]]
+
+                 [:script {:type "application/javascript" :src "/js/script.js"}]
                  [:div.wrapper
                  [:a {:href "/filter"} "Filter"]
                   ]
@@ -85,8 +74,7 @@
                   [:a {:href "/bulk"} "Bulk tagging"]
                   ]
                  (contact-sheet pics (fn [thumb] (mk-tag-str (:id thumb))))
-                 (pagination offset num-thumbs)
-                 [:script {:type "application/javascript" :src "/js/script.js"}]]))))
+                 ]))))
 
 ;;---------------------------------------------------------------------------
 
@@ -95,7 +83,7 @@
     (if (and (some? num-pics) (integer? num-pics) (> num-pics 10) (<= num-pics 500))
         (do
             (save-grid remote-addr num-pics)
-            (ring/redirect (str "/" owner "&offset=" offset) 303))
+            (ring/redirect (str "/" owner "&offset=" offset)))
         (ring/response "Invalid parameters.")))
 
 ;;---------------------------------------------------------------------------

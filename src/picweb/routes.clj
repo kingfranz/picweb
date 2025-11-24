@@ -4,45 +4,51 @@
               [compojure.core :refer :all]
               [compojure.route :as route]
               [picweb.html :refer [get-next sheet-at get-rand-pic
-                                   get-pic get-prev get-thumb-pic find-date four-oh-four
+                                   get-pic get-prev get-thumb-pic four-oh-four
                                    pic-page update-tags rotate-left rotate-right]]
               [picweb.tags :refer [edit-tags rename-tag delete-tag]]
               [picweb.sheet :refer [contact-page update-grid]]
               [picweb.filter :refer [filter-page update-filter]]
+              [picweb.thumbnails :refer [get-closest-thumb]]
               [picweb.bulk :refer [bulk-page bulk-update]]))
 
-(defn get-num
-    [req k]
-    (if (contains? req k)
-        (Integer/parseInt (str/replace (get req k) #"[^0-9]+" ""))
-        (if (and (contains? req :params) (contains? (:params req) k))
-            (Integer/parseInt (str/replace (get-in req [:params k]) #"[^0-9]+" ""))
-            nil)))
+(defn- thumb2int
+    [thumb]
+    (Integer/parseInt (str (subs (:timestr thumb) 0 4)
+                           (subs (:timestr thumb) 5 7)
+                           (subs (:timestr thumb) 8 10))))
 
 (defroutes app-routes
            (GET "/" request
-               (contact-page 0 (:remote-addr request)))
+               (contact-page 0 :offset (:remote-addr request)))
 
-           (GET "/offset/:num" request
-               (contact-page (get-num request :uri)
-                             (:remote-addr request)))
+           (GET "/offset" [offset :<< as-int :as {remote :remote-addr}]
+               (contact-page offset :offset remote))
 
-           (GET "/sheetat/:num" request
-               (sheet-at (get-num request :uri)
-                             (:remote-addr request)))
+           (GET "/finddate" [target :<< as-int :as {remote :remote-addr}]
+               (contact-page target :date remote))
 
-           (GET "/pic/:num" request
-               (pic-page (get-num request :uri)))
+           (GET "/findimg" [target :<< as-int :as {remote :remote-addr}]
+               (when-let [tn (get-closest-thumb target)]
+                   (contact-page (thumb2int tn) :date remote)))
 
-           (GET "/picture/:num" request
-               (get-pic (get-num request :uri)))
+           (GET "/findpage" [target :<< as-int :as {remote :remote-addr}]
+               (contact-page target :page remote))
 
-           (GET "/thumb/:num" request
-               (get-thumb-pic (get-num request :uri)))
+           (GET "/sheetat" [pic-id :<< as-int :as {remote :remote-addr}]
+               (sheet-at pic-id remote))
 
-           (GET "/bulk/:num" request
-               (bulk-page (get-num request :uri)
-                          (:remote-addr request)))
+           (GET "/pic" [pic-id :<< as-int]
+               (pic-page pic-id))
+
+           (GET "/picture" [pic-id :<< as-int]
+               (get-pic pic-id))
+
+           (GET "/thumb" [pic-id :<< as-int]
+               (get-thumb-pic pic-id))
+
+           (GET "/bulk" [offset :<< as-int :as {remote :remote-addr}]
+               (bulk-page offset remote))
 
            (GET "/bulk" request
                (bulk-page 0 (:remote-addr request)))
@@ -56,9 +62,8 @@
            (POST "/update-filter" request
                (update-filter (request :params)))
 
-           (POST "/tagupdate/:num" request
-               ;(println pic-id new-tag rating params)
-               (update-tags (get-num request :uri) request))
+           (POST "/tagupdate" [pic-id :<< as-int :as request]
+               (update-tags pic-id request))
 
            (POST "/gridupdate" request
                (let [params (request :params)
@@ -68,14 +73,14 @@
                      owner (get params :owner "unknown")]
                (update-grid offset num_per_page remote-addr owner)))
 
-           (POST "/rename-tag/:tag-id" request
-               (rename-tag (get-num request :uri) request))
+           (POST "/rename-tag" [tag-id :<< as-int :as request]
+               (rename-tag tag-id request))
 
-           (GET "/prev/:num" request
-               (get-prev (get-num request :uri)))
+           (GET "/prev" [pic-id :<< as-int]
+               (get-prev pic-id))
 
-           (GET "/next/:num" request
-               (get-next (get-num request :uri)))
+           (GET "/next" [pic-id :<< as-int]
+               (get-next pic-id))
 
            (GET "/rndpic" request
                (get-rand-pic))
@@ -83,18 +88,14 @@
            (GET "/edit-tags" request
                (edit-tags))
 
-           (GET "/delete-tag/:num" request
-               (delete-tag (get-num request :uri)))
+           (GET "/delete-tag" [tag-id :<< as-int]
+               (delete-tag tag-id))
 
-           (GET "/rotate-left/:num" request
-               (rotate-left (get-num request :uri)))
+           (GET "/rotate-left" [pic-id :<< as-int]
+               (rotate-left pic-id))
 
-           (GET "/rotate-right/:num" request
-               (rotate-right (get-num request :uri)))
-
-           (GET "/finddate/:num" request
-               (find-date (get-num request :uri)
-                          (:remote-addr request)))
+           (GET "/rotate-right" [pic-id :<< as-int]
+               (rotate-right pic-id))
 
            (route/resources "/")
 

@@ -97,14 +97,12 @@ div.pagination1 {
 span.pagination1 {
    font-size: 25px;
    text-align: center;
-   margin: auto;
    display: inline-block;
 }
 
 input.pagination1 {
    font-size: 25px;
    text-align: center;
-   margin: auto;
    display: inline-block;
 }
 
@@ -217,8 +215,7 @@ href.rotate {
 
 div.help {
     /*display: inline-block;*/
-    padding-top: 40px;
-    padding-bottom: 40px;
+    padding-top: 10px;
     /*background-color: black;*/
     font-size: 15px;
     color: white;
@@ -254,3 +251,19 @@ div.help {
 .bkg {
     background-color: white;
 }
+
+table.footer-table {
+    width: 100%;
+    text-align: center;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    font-size: 25px;
+}
+
+td.footer-td {
+    width: 33%;
+    font-size: 15px;
+    color: white;
+    font-size: 25px;
+}
+

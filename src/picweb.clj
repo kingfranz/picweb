@@ -1,6 +1,7 @@
 (ns picweb
     (:require [clojure.java.io :as io]
               [clojure.java.shell :refer [sh]]
+              [clojure.pprint :as pp]
               [picweb.html :refer [mk-tn-name]]
               [picweb.routes :refer [app-routes]]
               [picweb.thumbnails :refer [delete-thumb get-all-thumbs]]
@@ -14,8 +15,8 @@
 (defn- trace-call
     [handler]
     (fn [request]
-        ; (println "Incoming:")
-        ; (pp/pprint request)
+        ;(println "Incoming:")
+        ;(pp/pprint request)
         (let [ret (handler request)]
             ret)))
 
