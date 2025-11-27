@@ -1,5 +1,5 @@
 (ns picweb.sheet
-    (:require [hiccup.form :refer :all]
+    (:require [hiccup.form :refer [form-to hidden-field text-field submit-button]]
               [hiccup.page :as page]
               [picweb.tags :refer [mk-tag-str has-tags?]]
               [picweb.thumbnails :refer [get-grid get-thumbs save-grid]]
@@ -23,27 +23,20 @@
           ])]))
 
 (defn grid-form
-    [offset num-thumbs owner]
+    [start-time num-thumbs owner]
     (form-to
         [:post "/gridupdate"]
-        (hidden-field :offset (str offset))
+        (hidden-field :start-time (str start-time))
         (hidden-field :owner owner)
         [:span
          [:label.simple "Pictures per page: "
           (text-field {:size 3 :maxlength 3} :num_per_page num-thumbs)]
          (submit-button {:class "submit"} "Update")]))
 
-(defn- thumb2int
-    [thumb]
-    (Integer/parseInt (str (subs (:timestr thumb) 0 4)
-                           (subs (:timestr thumb) 5 7)
-                           (subs (:timestr thumb) 8 10))))
-
 (defn contact-page
-    [value value-type remote-addr]
+    [start-time remote-addr]
     (let [num-thumbs (get-grid remote-addr)
-          pics (get-thumbs value value-type num-thumbs)
-          offset (thumb2int (first pics))]
+          pics (get-thumbs start-time num-thumbs)]
         (if (empty? pics)
             [:div "No pictures found."]
             (page/html5
@@ -62,8 +55,8 @@
                  (hidden-field :numOfThumbs (str num-thumbs))
                  [:table
                   [:tr
-                   [:td (grid-form offset num-thumbs "offset")]
-                   [:td (pagination offset num-thumbs "offset")]
+                   [:td (grid-form start-time num-thumbs "contact")]
+                   [:td (pagination start-time num-thumbs "contact")]
                    ]]
 
                  [:script {:type "application/javascript" :src "/js/script.js"}]
@@ -71,7 +64,7 @@
                  [:a {:href "/filter"} "Filter"]
                   ]
                  [:div.wrapper
-                  [:a {:href "/bulk"} "Bulk tagging"]
+                  [:a {:href (str "/bulk?start=" start-time)} "Bulk tagging"]
                   ]
                  (contact-sheet pics (fn [thumb] (mk-tag-str (:id thumb))))
                  ]))))
@@ -79,11 +72,11 @@
 ;;---------------------------------------------------------------------------
 
 (defn update-grid
-    [offset num-pics remote-addr owner]
+    [start-time num-pics remote-addr owner]
     (if (and (some? num-pics) (integer? num-pics) (> num-pics 10) (<= num-pics 500))
         (do
             (save-grid remote-addr num-pics)
-            (ring/redirect (str "/" owner "&offset=" offset)))
+            (ring/redirect (str "/" owner "&start=" start-time)))
         (ring/response "Invalid parameters.")))
 
 ;;---------------------------------------------------------------------------

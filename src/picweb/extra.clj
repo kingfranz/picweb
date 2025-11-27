@@ -1,16 +1,10 @@
 (ns picweb.extra
-    (:require [hiccup.form :refer :all]
-              [picweb.tags :refer :all]
-              ;[picweb.thumbnails :refer [get-num-thumbs]]
+    (:require [hiccup.form :refer [label]]
+              [picweb.tags :refer [get-all-tags]]
+              [picweb.utils :refer [decode-data get-newer-thumb get-older-thumb]]
               ))
 
 ;;------------------------------------------------------------
-
-(defn encode-data [data]
-    (.encodeToString (java.util.Base64/getEncoder) (.getBytes data)))
-
-(defn decode-data [encoded-data]
-    (String. (.decode (java.util.Base64/getDecoder) encoded-data)))
 
 (defn show-filters
     [selected elem]
@@ -65,40 +59,20 @@
              (map-indexed (fn [i r] (labeled-elem elem (get selected :ratings #{}) i r)) ratings))])
 
 (defn pagination
-    [offset num-thumbs-per-page owner*]
-    (let [current-page (int (/ offset num-thumbs-per-page))
-          prev-page (if (>= current-page 1) (dec current-page) 0)
-          prev-offset (if (> offset num-thumbs-per-page) (- offset num-thumbs-per-page) 0)
+    [start-time num-thumbs-per-page owner*]
+    (let [prev-page (get-older-thumb start-time num-thumbs-per-page)
+          next-page (get-newer-thumb start-time num-thumbs-per-page)
           owner owner*]
         [:div
-         (when (> offset 0)
              [:span.pagination1
-              [:a.pagination {:href (str "/" owner "?offset=" prev-offset)} (str " " prev-page " ")]])
+              [:a.pagination {:href (str "/" owner "?start=" prev-page)} "<"]]
 
-         ;(hidden-field :owner owner)
          [:span.pagination1
-          [:input.pagination1 {:type "text" :id "current-page" :value current-page}]
+          [:input.pagination1 {:type "text" :id "current-page" :value start-time}]
           [:div {:id "message"}]
           [:button {:type "button" :id "button" :hidden true} "Go"]]
 
-         (let [total-num-thumbs (picweb.thumbnails/get-num-thumbs)
-               post-pages (int (/ (- total-num-thumbs (* (inc current-page) num-thumbs-per-page)) num-thumbs-per-page))]
-             (when (> post-pages 0)
                  [:span.pagination1
-                  [:a.pagination {:href (str "/" owner "?offset=" (+ offset num-thumbs-per-page))} (str " " (inc current-page) " ")]]))
-         [:div.help (str "Enter a value < 500 for pagenunber\n"
-                         "Between 500 and 40000 for imagenumber\n"
-                         "Between 19700101 and 20251231 to search by date")]]))
+                  [:a.pagination {:href (str "/" owner "?start=" next-page)} ">"]]
+         [:div.help "Between 19700101 and 20251231 to search by date"]]))
 
-;(defn thumb2int
-;    [thumb]
-;    (Integer/parseInt (str (subs (:timestr thumb) 0 4)
-;                           (subs (:timestr thumb) 5 7)
-;                           (subs (:timestr thumb) 8 10))))
-;
-;(defn int2thumb
-;    [num]
-;    (let [s (format "%08d" num)
-;          timestr (str (subs s 0 4) "-" (subs s 4 6) "-" (subs s 6 8) "T00:00:00")]
-;        timestr))
-;

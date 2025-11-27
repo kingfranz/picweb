@@ -1,6 +1,6 @@
 (ns picweb.bulk
     (:require [clojure.string :as str]
-              [hiccup.form :refer :all]
+              [hiccup.form :refer [form-to check-box hidden-field submit-button]]
               [hiccup.page :as page]
               [picweb.sheet :refer [contact-sheet grid-form]]
               [picweb.tags :refer [mk-tag-str has-tags? assoc-tag]]
@@ -9,9 +9,9 @@
               [ring.util.response :as ring]))
 
 (defn bulk-page
-    [offset remote-addr]
+    [start-time remote-addr]
     (let [num-thumbs (get-grid remote-addr)
-          pics (get-thumbs offset :offset num-thumbs)]
+          pics (get-thumbs start-time num-thumbs)]
         (if (empty? pics)
             [:div "No pictures found."]
             (page/html5
@@ -25,15 +25,15 @@
                  (hidden-field :numOfThumbs (str num-thumbs))
                  [:table
                   [:tr
-                   [:td (grid-form offset num-thumbs "bulk")]
-                   [:td (pagination offset num-thumbs "bulk")]
+                   [:td (grid-form start-time num-thumbs "bulk")]
+                   [:td (pagination start-time num-thumbs "bulk")]
                    ]]
                  [:script {:type "application/javascript" :src "/js/script.js"}]
                  [:div
                   (form-to
                       [:post "/bulk-tag-update"]
                       (hidden-field :numOfThumbs (str num-thumbs))
-                      (hidden-field :offset (str offset))
+                      (hidden-field :start-time (str start-time))
                       [:div (show-filters {:tags #{}} check-box)]
                       [:hr]
                       (contact-sheet pics
@@ -46,12 +46,16 @@
 
 (defn bulk-update
     [params]
-    (let [st (filter #(str/starts-with? (name %) "tag_") (keys params))
-          selected-tags (map #(parse-long (subs (name %) 4)) st)
-          si (filter #(str/starts-with? (name %) "img_") (keys params))
-          selected-imgs (map #(parse-long (subs (name %) 4)) si)]
+    (let [selected-tags (->> params
+                             (keys)
+                             (filter #(str/starts-with? (name %) "tag_"))
+                             (map #(parse-long (subs (name %) 4))))
+          selected-imgs (->> params
+                             (keys)
+                             (filter #(str/starts-with? (name %) "img_"))
+                             (map #(parse-long (subs (name %) 4))))]
         (doseq [img-id selected-imgs
                 tag-id selected-tags]
             (assoc-tag img-id tag-id))
-        (ring/redirect (str "/bulk?offset=" (get params :offset 0)))))
+        (ring/redirect (str "/bulk?start=" (get params :start-time 0)))))
 

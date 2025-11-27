@@ -1,8 +1,8 @@
 (ns picweb.tags
-    (:require [hiccup.page :as page]
-              [hiccup.form :refer :all]
-              [picweb.thumbnails :refer [ds-opts insert]]
+    (:require [hiccup.form :refer [form-to text-field submit-button]]
+              [hiccup.page :as page]
               [next.jdbc.sql :as sql]
+              [picweb.utils :refer [ds-opts insert]]
               [ring.util.response :as ring]))
 
 ;;-----------------------------------------------------------------------------
@@ -15,14 +15,14 @@
 
 (defn get-pic-tags
     [id]
-    {:pre [(int? id)]
+    {:pre  [(int? id)]
      :post [(sequential? %)]}
     (let [res (sql/query ds-opts ["SELECT * FROM tags t WHERE t.tag_id IN (SELECT m.tag_id FROM tag_m2m m WHERE m.id = ?)" id])]
         res))
 
 (defn get-tag
     [tag-id]
-    {:pre [(int? tag-id)]
+    {:pre  [(int? tag-id)]
      :post [(or (nil? %) (map? %))]}
     (let [res (sql/query ds-opts ["SELECT * FROM tags WHERE tag_id = ?" tag-id])]
         (if (empty? res)
@@ -31,7 +31,7 @@
 
 (defn find-tag-id
     [tag-name]
-    {:pre [(string? tag-name)]
+    {:pre  [(string? tag-name)]
      :post [(or (nil? %) (int? %))]}
     (let [res (sql/query ds-opts ["SELECT tag_id FROM tags WHERE name = ?" tag-name])]
         (if (empty? res)
@@ -40,14 +40,14 @@
 
 (defn has-tag?
     [pic-id tag-id]
-    {:pre [(int? pic-id) (int? tag-id)]
+    {:pre  [(int? pic-id) (int? tag-id)]
      :post [(boolean? %)]}
     (let [res (sql/query ds-opts ["SELECT * FROM tag_m2m WHERE id = ? AND tag_id = ?" pic-id tag-id])]
-        (seq res)))
+        (= res [{:id pic-id :tag_id tag-id}])))
 
 (defn assoc-tag
     [pic-id tag-id]
-    {:pre [(int? pic-id) (int? tag-id)]
+    {:pre  [(int? pic-id) (int? tag-id)]
      :post [(or (nil? %) (int? %))]}
     (if (has-tag? pic-id tag-id)
         tag-id
@@ -56,7 +56,7 @@
 
 (defn delete-tag-from-db
     [tag-id]
-    {:pre [(int? tag-id)]
+    {:pre  [(int? tag-id)]
      :post [(boolean? %)]}
     (let [res1 (sql/delete! ds-opts :tag_m2m {:tag_id tag-id})]
         (if (> (res1 :next.jdbc/update-count) 0)
@@ -68,7 +68,7 @@
 
 (defn has-tags?
     [pic-id]
-    {:pre [(int? pic-id)]
+    {:pre  [(int? pic-id)]
      :post [(boolean? %)]}
     (let [res (sql/query ds-opts ["SELECT COUNT(*) AS cnt FROM tag_m2m WHERE id = ?" pic-id])]
         (> (:cnt (first res)) 0)))
@@ -79,13 +79,13 @@
      :post [(string? %)]}
     (let [res (sql/query ds-opts ["SELECT name FROM tags WHERE tag_id IN (SELECT tag_id from tag_m2m WHERE ID = ?)" pic-id])
           ret (if (empty? res)
-            ""
-            (apply str (interpose "," (map :name res))))]
+                  ""
+                  (apply str (interpose "," (map :name res))))]
         ret))
 
 (defn save-tag
     [pic-id tag-name]
-    {:pre [(int? pic-id) (string? tag-name)]
+    {:pre  [(int? pic-id) (string? tag-name)]
      :post [(or (nil? %) (int? %))]}
     (if-let [tag-id (find-tag-id tag-name)]
         (when (assoc-tag pic-id tag-id)
@@ -101,18 +101,9 @@
                             nil)))
                 nil))))
 
-(defn save-new-tag
-    [tag-name]
-    {:pre [(string? tag-name)]
-     :post [(or (nil? %) (int? %))]}
-    (if-let [tag-id (find-tag-id tag-name)]
-        tag-id
-        (let [new-tag-id (insert :tags {:name tag-name})]
-            new-tag-id)))
-
 (defn disassoc-tag
     [pic-id tag-id]
-    {:pre [(int? pic-id) (int? tag-id)]
+    {:pre  [(int? pic-id) (int? tag-id)]
      :post [(boolean? %)]}
     (let [res (sql/delete! ds-opts :tag_m2m {:id pic-id :tag_id tag-id})]
         (and (some? res) (= (:update_count (first res)) 1))))
@@ -142,24 +133,24 @@
                all-links (get-all-m2m)
                tags-with-extra (map #(assoc % :usage (count (filter (fn [ll] (= (:tag_id %) (:tag_id ll))) all-links))) all-tags)]
              [:div.w3-container
-             [:table.w3-table.w3-border.w3-small
-              [:tr
-               [:th.bkg "Name"]
-               [:th.bkg "ID"]
-               [:th.bkg "Num"]
-               [:th.bkg "Rename"]
-               [:th.bkg "Delete"]
-               ]
-              (for [t tags-with-extra]
-                  [:tr
-                   (form-to
-                       [:post (str "/rename-tag?tag-id=" (:tag_id t))]
-                       [:td.bkg (text-field (keyword (str "name-" (:tag_id t))) (:name t))]
-                   [:td.bkg (:tag_id t)]
-                   [:td.bkg (:usage t)]
-                   [:td.bkg  (submit-button "Rename")])
-                   [:td.bkg [:a {:href (str "/delete-tag?tag-id=" (:tag_id t))}  "Del"]] ;[:button {:onclick "return confirm('Are you sure?')"}]]]
-                   ])]])
+              [:table.w3-table.w3-border.w3-small
+               [:tr
+                [:th.bkg "Name"]
+                [:th.bkg "ID"]
+                [:th.bkg "Num"]
+                [:th.bkg "Rename"]
+                [:th.bkg "Delete"]
+                ]
+               (for [t tags-with-extra]
+                   [:tr
+                    (form-to
+                        [:post (str "/rename-tag?tag-id=" (:tag_id t))]
+                        [:td.bkg (text-field (keyword (str "name-" (:tag_id t))) (:name t))]
+                        [:td.bkg (:tag_id t)]
+                        [:td.bkg (:usage t)]
+                        [:td.bkg (submit-button "Rename")])
+                    [:td.bkg [:a {:href (str "/delete-tag?tag-id=" (:tag_id t))} "Del"]] ;[:button {:onclick "return confirm('Are you sure?')"}]]]
+                    ])]])
          [:p]
          [:p]
          [:a.pagination {:href "/"} "Back to contact sheet"]

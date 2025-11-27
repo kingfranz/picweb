@@ -3,15 +3,17 @@
               [clojure.pprint :as pp]
               [clojure.set :as set]
               [clojure.string :as str]
-              [hiccup.form :refer :all]
+              [hiccup.form :refer [check-box form-to hidden-field
+                                  radio-button submit-button text-field]]
               [hiccup.page :as page]
               [picweb.extra :refer [show-filters show-rating]]
-              [picweb.tags :refer [get-all-tags get-pic-tags disassoc-tag assoc-tag save-tag
+              [picweb.tags :refer [get-pic-tags disassoc-tag assoc-tag save-tag
                                  find-tag-id]]
               [picweb.thumbnails :refer [get-thumb update-thumb get-prev-thumb
                                          get-next-thumb get-grid get-all-thumb-ids
-                                         update-rating find-thumb-by-date get-nth-thumb
-                                         get-num-thumbs get-closest-thumb]]
+                                         update-rating get-nth-thumb
+                                         get-num-thumbs]]
+              [picweb.utils :refer [thumb2int]]
               [ring.util.response :as ring])
     )
 
@@ -32,7 +34,7 @@
 ;;---------------------------------------------------------------------------
 
 (defn- tag-and-rate
-    [all-tags pic-tags pic-id pic]
+    [pic-tags pic-id pic]
     (form-to
         [:post (str "/tagupdate?pic-id=" pic-id)]
         [:div.tags
@@ -74,8 +76,7 @@
         (let [pic (get-thumb pic-id)]
             (if (empty? pic)
                 [:div "Picture not found."]
-                (let [all-tags (get-all-tags)
-                      pic-tags (map :tag_id (get-pic-tags pic-id))]
+                (let [pic-tags (map :tag_id (get-pic-tags pic-id))]
                     (page/html5
                         [:head
                          (page/include-css "/css/style.css")
@@ -85,7 +86,7 @@
                          [:meta {:http-equiv "expires" :content "0"}]
                          [:meta {:http-equiv "expires" :content "Tue, 01 Jan 1980 1:00:00 GMT"}]
                          [:meta {:http-equiv "pragma" :content "no-cache"}]
-                         [:link {:rel "icon" :href "http://ubuntupc.lan:4559/favicon.png"}]
+                         [:link {:rel "icon" :href "http://ubuntupc.lan:4559/favicon.ico" :type "image/x-icon"}]
                          [:title "Picture Details"]
                          ]
                         [:body
@@ -94,15 +95,15 @@
                           [:a {:href (str "/rotate-left?pic-id=" pic-id)} "Rotate Left   .."]
                           [:a {:href (str "/rotate-right?pic-id=" pic-id)} "..   Rotate Right"]
                           ]
-                         (tag-and-rate all-tags pic-tags pic-id pic)
+                         (tag-and-rate pic-tags pic-id pic)
                          [:div.wrapper
                           [:a {:href (str "/prev?pic-id=" pic-id)} "Previous   ."]
-                          [:a {:href (str "/rndpic")} ".   Random"]
+                          [:a {:href "/rndpic"} ".   Random"]
                           [:a {:href (str "/next?pic-id=" pic-id)} "..   Next"]]
                          [:p]
                          [:table.footer-table
                           [:tr.footer-tr
-                           [:td.footer-td [:a {:href (str "/sheetat?pic-id=" pic-id)} "Back to Contact Sheet"]]
+                           [:td.footer-td [:a {:href (str "/contact?start=" (thumb2int pic))} "Back to Contact Sheet"]]
                            [:td.footer-td [:a {:href "/edit-tags"} "Edit Tags"]]
                            [:td.footer-td "Open in GIMP"]]
                           [:tr.footer-tr
@@ -124,7 +125,7 @@
           all-ids (get-all-thumb-ids)
           pic-idx (.indexOf all-ids pic-id)
           page-num (int (/ pic-idx num-thumbs))]
-        (ring/redirect (str "/offset?offset=" (* page-num num-thumbs)))))
+        (ring/redirect (str "/contact?start=" (* page-num num-thumbs)))))
 
 (defn- file-size
     [path]
@@ -215,12 +216,6 @@
          (filter #(<= 1 % 5))
          (set)))
 
-(defn- check-name
-    [x]
-    (let [nn (name x)
-          ss (and (str/starts-with? nn "tag_") (not= nn "tag_"))]
-        ss))
-
 (defn- checked-tags
     [params]
     (->> params
@@ -232,7 +227,7 @@
          (remove nil?)
          (set)))
 
-(def allowed-str "abcdefghijklmnopqrstuvwxyzåäö0123456789- ")
+(def allowed-str "abcdefghijklmnopqrstuvwxyzåäö0123456789-& ")
 (def lc-allowed-chars (set (seq allowed-str)))
 (def allowed-chars (set/union lc-allowed-chars (str/upper-case allowed-str)))
 
@@ -317,23 +312,3 @@
             (ring/response "No random picture found.")
             (ring/redirect (str "/pic?pic-id=" (:id thumb))))))
 
-;(defn find-date
-;    [target remote-addr]
-;    {:pre [(int? target) (< 19700101 target 20251231)]
-;     :post [(or (nil? %) (map? %))]}
-;    (if-let [found (find-thumb-by-date target)]
-;        (let [all-ids (get-all-thumb-ids)
-;              pic-idx (.indexOf all-ids (:id found))
-;              num-thumbs (get-grid remote-addr)
-;              page-num (int (/ pic-idx num-thumbs))]
-;            (ring/redirect (str "/offset?offset=" (* page-num num-thumbs))))
-;        (ring/response (str "No picture found for date: " target))))
-;
-;(defn find-number
-;    [num remote-addr]
-;    {:pre [(int? num) (< 500 num 40000)]
-;     :post [(or (nil? %) (map? %))]}
-;    (let [t (get-closest-thumb num)]
-;        (if (empty? t)
-;            (ring/response (str "No picture found for number: " num))
-;            (find-date (thumb2int t) remote-addr))))

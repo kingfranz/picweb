@@ -1,14 +1,10 @@
 (ns picweb.thumbnails
     (:require [clojure.spec.alpha :as s]
               [clojure.string :as str]
-              [next.jdbc :as jdbc]
-              [next.jdbc.result-set :as rs]
+              [clojure.set :refer [intersection]]
               [next.jdbc.sql :as sql]
+              [picweb.utils :refer [ds-opts int2thumb min-start default-page-size]]
               [ring.util.response :as ring]))
-
-(def db {:dbtype "sqlite" :dbname "pictures.sqlite3"})
-(def ds (jdbc/get-datasource db))
-(def ds-opts (jdbc/with-options ds {:builder-fn rs/as-unqualified-lower-maps}))
 
 ;;-----------------------------------------------------------------------------
 
@@ -16,26 +12,6 @@
     [x]
     (println "SPY:" x)
     x)
-
-(defn int2thumb
-    [num]
-    (let [s (format "%08d" num)
-          timestr (str (subs s 0 4) "-" (subs s 4 6) "-" (subs s 6 8) "T00:00:00")]
-        timestr))
-
-(defn insert
-    [table data]
-    {:pre [(keyword table) (map? data)]
-     :post [(or (nil? %) (integer? %))]}
-    (try
-        (let [res (sql/insert! ds-opts table data)]
-            (if (empty? res)
-                nil
-                (first (vals res))))
-        (catch Exception e
-            (println "Error inserting into table:" table "with data:" data)
-            (println "Exception:" (.getMessage e))
-            nil)))
 
 (defn update-thumb
     [id data]
@@ -58,24 +34,10 @@
 
 
 (defn get-thumbs
-    "Retrieve a sequence of thumbnail records based on the specified value type and pagination parameters.
-
-    Parameters:
-    - value: An integer representing either an offset, date, or page number depending on value-type.
-    - value-type: A keyword indicating the type of value provided (:offset, :date, or :page).
-    - num-per-page: An integer specifying the number of thumbnails to retrieve per page.
-
-    Returns:
-    A sequence of thumbnail records matching the criteria."
-    [value value-type num-per-page]
-    {:pre [(integer? value) (s/valid? :picweb/value-type value-type) (integer? num-per-page)]
+    [start-time page-sz]
+    {:pre [(integer? start-time) (integer? page-sz)]
      :post [(sequential? %)]}
-    (let [head "SELECT * FROM thumbnails "
-          selector (case value-type
-                       :offset [(str head "ORDER BY timestr ASC LIMIT ? OFFSET ?") num-per-page value]
-                       :date [(str head "WHERE timestr >= ? ORDER BY timestr ASC LIMIT ?") (int2thumb value) num-per-page]
-                       :page [(str head "ORDER BY timestr ASC LIMIT ? OFFSET ?") num-per-page (* value num-per-page)])
-          res (sql/query ds-opts selector)]
+    (let [res (sql/query ds-opts ["SELECT * FROM thumbnails WHERE timestr >= ? ORDER BY timestr ASC LIMIT ?" (int2thumb start-time) page-sz])]
         res))
 
 (defn get-thumb
@@ -112,23 +74,14 @@
 (defn get-filtered-thumbs
     [selected]
     (cond
-        (and (empty? (:tags selected)) (empty? (:ratings selected))) (get-thumbs 0 :offset 50)
+        (and (empty? (:tags selected)) (empty? (:ratings selected))) (get-thumbs min-start default-page-size)
         (empty? (:tags selected)) (get-thumbs-by-rating (:ratings selected))
         (empty? (:ratings selected)) (get-thumbs-by-tags (:tags selected))
         :else (let [by-tags (set (get-thumbs-by-tags (:tags selected)))
-                    by-ratings (set (get-thumbs-by-rating (:ratings selected)))
-                    intersect (clojure.set/intersection by-tags by-ratings)]
+                    by-ratings(set (get-thumbs-by-rating (:ratings selected)))
+                    intersect (intersection by-tags by-ratings)]
                 ;(get-thumbs-by-tags intersect)
         intersect)))
-
-(defn get-offset
-    [id]
-    {:pre [(int? id)]
-     :post [(or (nil? %) (integer? %))]}
-    (let [res (sql/query ds-opts ["SELECT COUNT(1) FROM thumbnails WHERE id < ?" id])]
-        (if (empty? res)
-            nil
-            (get (first res) (keyword "count(1)")))))
 
 (defn get-prev-thumb
     [id]

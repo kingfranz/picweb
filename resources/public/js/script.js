@@ -11,20 +11,7 @@ button.addEventListener("click", function ()
    if (/^[0-9]+$/.test(vv) == false) {
        return;
    }
-   var nn = Number(vv);
-   if (nn < 500) {
-      var str = "/" + owner.value + "?offset=" + (nn * numThumbs);
-      console.log(str);
-      location.href = str;
-      return;
-   }
-   if (nn < 40000) {
-      var str = "/findimg?target=" + nn;
-      console.log(str);
-      location.href = str;
-      return;
-   }
-   var str = "/finddate?target=" + textBox.value;
+   var str = "/contact?start=" + textBox.value;
    console.log(str);
    location.href = str;
    });

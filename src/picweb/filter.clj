@@ -1,11 +1,12 @@
 (ns picweb.filter
     (:require [clojure.string :as str]
-              [hiccup.form :refer :all]
+              [hiccup.form :refer [form-to check-box submit-button]]
               [hiccup.page :as page]
-              [picweb.extra :refer [show-rating show-filters code encode-data]]
+              [picweb.extra :refer [show-rating show-filters code]]
               [picweb.sheet :refer [contact-sheet]]
-              [picweb.tags :refer :all]
-              [picweb.thumbnails :refer :all]
+              [picweb.tags :refer [mk-tag-str]]
+              [picweb.utils :refer [encode-data]]
+              [picweb.thumbnails :refer [get-filtered-thumbs]]
               [ring.util.response :as ring]))
 
 (defn filter-page

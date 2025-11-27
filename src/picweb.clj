@@ -1,7 +1,7 @@
 (ns picweb
     (:require [clojure.java.io :as io]
               [clojure.java.shell :refer [sh]]
-              [clojure.pprint :as pp]
+              [org.httpkit.server :only [run-server]]
               [picweb.html :refer [mk-tn-name]]
               [picweb.routes :refer [app-routes]]
               [picweb.thumbnails :refer [delete-thumb get-all-thumbs]]
@@ -9,7 +9,6 @@
               [ring.middleware.keyword-params :refer [wrap-keyword-params]]
               [ring.middleware.params :refer [wrap-params]]
               [ring.middleware.stacktrace :refer [wrap-stacktrace]])
-    (:use [org.httpkit.server :only [run-server]])
     (:gen-class))
 
 (defn- trace-call
