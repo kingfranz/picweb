@@ -1,10 +1,11 @@
 (ns picweb.sheet
     (:require [hiccup.form :refer [form-to hidden-field text-field submit-button]]
               [hiccup.page :as page]
+              [ring.util.response :as ring]
               [picweb.tags :refer [mk-tag-str has-tags?]]
-              [picweb.thumbnails :refer [get-grid get-thumbs save-grid]]
-              [picweb.extra :refer [pagination]]
-              [ring.util.response :as ring]))
+              [picweb.thumbnails :refer [get-thumbs]]
+              [picweb.extra :refer [pagination get-grid save-grid]]
+              [picweb.utils :refer [fix-time min-grid-size max-grid-size]]))
 
 
 (defn contact-sheet
@@ -34,11 +35,12 @@
          (submit-button {:class "submit"} "Update")]))
 
 (defn contact-page
-    [start-time remote-addr]
+    [start-time* remote-addr]
     (let [num-thumbs (get-grid remote-addr)
+          start-time (fix-time start-time*)
           pics (get-thumbs start-time num-thumbs)]
         (if (empty? pics)
-            [:div "No pictures found."]
+            (page/html5 [:div "No pictures found."])
             (page/html5
                 [:head
                  (page/include-css "/css/style.css")
@@ -59,7 +61,8 @@
                    [:td (pagination start-time num-thumbs "contact")]
                    ]]
 
-                 [:script {:type "application/javascript" :src "/js/script.js"}]
+                 (page/include-js "/js/script.js")
+                 ;[:script {:type "application/javascript" :src "/js/script.js"}]
                  [:div.wrapper
                  [:a {:href "/filter"} "Filter"]
                   ]
@@ -73,7 +76,8 @@
 
 (defn update-grid
     [start-time num-pics remote-addr owner]
-    (if (and (some? num-pics) (integer? num-pics) (> num-pics 10) (<= num-pics 500))
+    (if (and (some? num-pics) (integer? num-pics)
+             (> num-pics min-grid-size) (<= num-pics max-grid-size))
         (do
             (save-grid remote-addr num-pics)
             (ring/redirect (str "/" owner "&start=" start-time)))

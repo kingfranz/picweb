@@ -1,10 +1,11 @@
 (ns picweb
     (:require [clojure.java.io :as io]
               [clojure.java.shell :refer [sh]]
-              [org.httpkit.server :only [run-server]]
+              [clojure.pprint :as pp]
+              [org.httpkit.server :refer [run-server]]
               [picweb.html :refer [mk-tn-name]]
               [picweb.routes :refer [app-routes]]
-              [picweb.thumbnails :refer [delete-thumb get-all-thumbs]]
+              [picweb.thumbnails :refer [delete-thumb get-all-thumbs load-thumbnails]]
               [ring.middleware.cookies :refer [wrap-cookies]]
               [ring.middleware.keyword-params :refer [wrap-keyword-params]]
               [ring.middleware.params :refer [wrap-params]]
@@ -14,7 +15,7 @@
 (defn- trace-call
     [handler]
     (fn [request]
-        ;(println "Incoming:")
+        ;(println "=========================================================Incoming:")
         ;(pp/pprint request)
         (let [ret (handler request)]
             ret)))
@@ -95,5 +96,6 @@
             )
         (do
             (println "Starting PicWeb application...")
+            (load-thumbnails)
             (run-server app {:join? false :port 4559})))
     (println "PicWeb is running on port 4559!"))

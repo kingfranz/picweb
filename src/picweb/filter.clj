@@ -11,7 +11,9 @@
 
 (defn filter-page
     [params]
-    (let [selected (code params)]
+    (let [selected* (code params)
+          selected {:tag-set (set (get selected* :tag-set #{}))
+                    :rating-set (set (get selected* :rating-set #{}))}]
         (page/html5
          [:head
           [:title "Filter Pictures"]
@@ -22,11 +24,11 @@
           [:h2.submit [:a {:href "/"} "Back to Contact Sheet"]]
           (form-to
               [:post "/update-filter"]
+              (submit-button {:class "submit"} "Execute!")
               [:div (show-filters selected check-box)]
               [:div (show-rating selected check-box)]
               (contact-sheet (get-filtered-thumbs selected)
                              (fn [thumb] (mk-tag-str (:id thumb))))
-              (submit-button {:class "submit"} "Execute!")
               )])))
 
 (defn update-filter
@@ -37,7 +39,7 @@
           selected-ratings (->> (keys params)
                                 (filter #(str/starts-with? (name %) "rating-"))
                                 (map #(parse-long (subs (name %) 7))))
-          selected {:tags (set selected-tags)
-                    :ratings (set selected-ratings)}
+          selected {:tag-set (set selected-tags)
+                    :rating-set (set selected-ratings)}
           encoded-data (encode-data (pr-str selected))]
         (ring/redirect (str "/filter?filter=" encoded-data))))

@@ -10,10 +10,9 @@
               [picweb.tags :refer [get-pic-tags disassoc-tag assoc-tag save-tag
                                  find-tag-id]]
               [picweb.thumbnails :refer [get-thumb update-thumb get-prev-thumb
-                                         get-next-thumb get-grid get-all-thumb-ids
+                                         get-next-thumb
                                          update-rating get-nth-thumb
                                          get-num-thumbs]]
-              [picweb.utils :refer [thumb2int]]
               [ring.util.response :as ring])
     )
 
@@ -38,7 +37,7 @@
     (form-to
         [:post (str "/tagupdate?pic-id=" pic-id)]
         [:div.tags
-         (show-filters {:tags (set pic-tags)} check-box)
+         (show-filters {:tag-set (set pic-tags)} check-box)
          [:p]
          (hidden-field :pic-id pic-id)
          [:br]
@@ -48,7 +47,7 @@
            ]]]
         [:p]
         [:span.rating
-         (show-rating {:ratings #{(:rating pic)}} radio-button)
+         (show-rating {:rating-set #{(:rating pic)}} radio-button)
          ]
         [:p]
         (submit-button {:class "submit"} "Update!")))
@@ -75,7 +74,7 @@
     (try
         (let [pic (get-thumb pic-id)]
             (if (empty? pic)
-                [:div "Picture not found."]
+                (page/html5 [:div "Picture not found."])
                 (let [pic-tags (map :tag_id (get-pic-tags pic-id))]
                     (page/html5
                         [:head
@@ -103,7 +102,7 @@
                          [:p]
                          [:table.footer-table
                           [:tr.footer-tr
-                           [:td.footer-td [:a {:href (str "/contact?start=" (thumb2int pic))} "Back to Contact Sheet"]]
+                           [:td.footer-td [:a {:href (str "/contact?start=" (:timestr pic))} "Back to Contact Sheet"]]
                            [:td.footer-td [:a {:href "/edit-tags"} "Edit Tags"]]
                            [:td.footer-td "Open in GIMP"]]
                           [:tr.footer-tr
@@ -114,18 +113,9 @@
         (catch Exception e
             (println "Error generating picture page for pic-id" pic-id ":" (.getMessage e))
             (println "Stack trace:" (with-out-str (pp/pprint (.getStackTrace e))))
-            [:div "Error generating picture page."])))
+            (page/html5 [:div "Error generating picture page."]))))
 
 ;;---------------------------------------------------------------------------
-
-(defn sheet-at
-    [pic-id remote-addr]
-    {:pre [(int? pic-id) (string? remote-addr)]}
-    (let [num-thumbs (get-grid remote-addr)
-          all-ids (get-all-thumb-ids)
-          pic-idx (.indexOf all-ids pic-id)
-          page-num (int (/ pic-idx num-thumbs))]
-        (ring/redirect (str "/contact?start=" (* page-num num-thumbs)))))
 
 (defn- file-size
     [path]
