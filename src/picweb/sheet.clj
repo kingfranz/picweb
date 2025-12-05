@@ -5,7 +5,8 @@
               [picweb.tags :refer [mk-tag-str has-tags?]]
               [picweb.thumbnails :refer [get-thumbs]]
               [picweb.extra :refer [pagination get-grid save-grid]]
-              [picweb.utils :refer [fix-time min-grid-size max-grid-size]]))
+              [picweb.utils :refer [fix-time min-grid-size max-grid-size
+                                    default-page-size min-start]]))
 
 
 (defn contact-sheet
@@ -75,12 +76,17 @@
 ;;---------------------------------------------------------------------------
 
 (defn update-grid
-    [start-time num-pics remote-addr owner]
-    (if (and (some? num-pics) (integer? num-pics)
-             (> num-pics min-grid-size) (<= num-pics max-grid-size))
-        (do
-            (save-grid remote-addr num-pics)
-            (ring/redirect (str "/" owner "&start=" start-time)))
-        (ring/response "Invalid parameters.")))
+    [request]
+    (let [params (request :params)
+          start-time (get params :start min-start)
+          num-pics (Integer/parseInt (get params :num_per_page (str default-page-size)))
+          remote-addr (:remote-addr request)
+          owner (get params :owner "unknown")]
+        (if (and (some? num-pics) (integer? num-pics)
+              (> num-pics min-grid-size) (<= num-pics max-grid-size))
+         (do
+             (save-grid remote-addr num-pics)
+             (ring/redirect (str "/" owner "&start=" start-time)))
+         (ring/response "Invalid parameters."))))
 
 ;;---------------------------------------------------------------------------

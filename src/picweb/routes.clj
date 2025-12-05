@@ -8,7 +8,7 @@
               [picweb.tags :refer [edit-tags rename-tag delete-tag]]
               [picweb.sheet :refer [contact-page update-grid]]
               [picweb.filter :refer [filter-page update-filter]]
-              [picweb.utils :refer [min-start default-page-size fix-time]]
+              [picweb.utils :refer [min-start fix-time]]
               [picweb.bulk :refer [bulk-page bulk-update]]))
 
 (defroutes app-routes
@@ -17,6 +17,8 @@
 
            (GET "/contact" [start :as {remote :remote-addr}]
                (contact-page (fix-time start) remote))
+
+           ;-------------------------------------------------
 
            (GET "/pic" [pic-id :<< as-int]
                (pic-page pic-id))
@@ -27,6 +29,8 @@
            (GET "/thumb" [pic-id :<< as-int]
                (get-thumb-pic pic-id))
 
+           ;-------------------------------------------------
+
            (GET "/bulk" [start :as {remote :remote-addr}]
                (bulk-page (fix-time start) remote))
 
@@ -36,25 +40,23 @@
            (POST "/bulk-tag-update" request
                (bulk-update (request :params)))
 
+           ;-------------------------------------------------
+
            (GET "/filter" request
-               (filter-page (request :params)))
+               (filter-page (fix-time min-start) (request :params) (:remote-addr request)))
+
+           (GET "/filter" [start :as {remote :remote-addr params :params}]
+               (filter-page (fix-time start) params remote))
 
            (POST "/update-filter" request
                (update-filter (request :params)))
 
-           (POST "/tagupdate" [pic-id :<< as-int :as request]
-               (update-tags pic-id request))
+           ;-------------------------------------------------
 
            (POST "/gridupdate" request
-               (let [params (request :params)
-                     start (get params :start min-start)
-                     num_per_page (Integer/parseInt (get params :num_per_page (str default-page-size)))
-                     remote-addr (:remote-addr request)
-                     owner (get params :owner "unknown")]
-               (update-grid (fix-time start) num_per_page remote-addr owner)))
+               (update-grid request))
 
-           (POST "/rename-tag" [tag-id :<< as-int :as request]
-               (rename-tag tag-id request))
+           ;-------------------------------------------------
 
            (GET "/prev" [pic-id :<< as-int]
                (get-prev pic-id))
@@ -65,17 +67,29 @@
            (GET "/rndpic" []
                (get-rand-pic))
 
+           ;-------------------------------------------------
+
+           (POST "/tagupdate" [pic-id :<< as-int :as request]
+               (update-tags pic-id request))
+
+           (POST "/rename-tag" [tag-id :<< as-int :as request]
+               (rename-tag tag-id request))
+
            (GET "/edit-tags" []
                (edit-tags))
 
            (GET "/delete-tag" [tag-id :<< as-int]
                (delete-tag tag-id))
 
+           ;-------------------------------------------------
+
            (GET "/rotate-left" [pic-id :<< as-int]
                (rotate-left pic-id))
 
            (GET "/rotate-right" [pic-id :<< as-int]
                (rotate-right pic-id))
+
+           ;-------------------------------------------------
 
            (route/resources "/")
 

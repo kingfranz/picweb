@@ -21,7 +21,6 @@
                  [:title "Bulk Tag Pictures"]
                  (page/include-css "/css/style.css")
                  (page/include-css "/css/w3.css")
-                 (page/include-js "/js/script.js")
                  [:meta {:http-equiv "cache-control" :content "no-cache, must-revalidate, post-check=0, pre-check=0"}]
                  [:meta {:http-equiv "cache-control" :content "max-age=0"}]
                  [:meta {:http-equiv "expires" :content "0"}]
@@ -36,6 +35,7 @@
                   [:tr
                    [:td (grid-form start-time num-thumbs "bulk")]
                    [:td (pagination start-time num-thumbs "bulk")]
+                   (page/include-js "/js/script.js")
                    ]]
                  [:div
                   (form-to
@@ -49,8 +49,7 @@
                                      (fn [thumb] (mk-tag-str (:id thumb))) ; tooltip
                                      (fn [thumb] [:span (check-box {:class "tags"} ; caption
                                                                    (str "img_" (:id thumb))) (if (has-tags? (:id thumb)) " T" "")]))
-                      )]
-                 ]))))
+                      )]]))))
 
 (defn bulk-update
     [params]
