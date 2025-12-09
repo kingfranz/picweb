@@ -87,7 +87,7 @@
     "Main entry point for the PicWeb application."
     [& args]
     ;(set! *assert* true)
-    (alter-var-root #'*assert* (constantly true))
+    (alter-var-root #'*assert* (constantly false))
     (if (and (seq args) (= (:arg (first args)) "--cleanup"))
         (do
             (println "Running in clean mode, not starting server.")
