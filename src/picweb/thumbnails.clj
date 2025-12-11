@@ -3,7 +3,9 @@
               [clojure.set :refer [intersection]]
               [next.jdbc :as jdbc]
               [next.jdbc.sql :as sql]
-              [picweb.utils :refer [ds-opts min-start default-page-size ss-valid? min-grid-size max-grid-size]]))
+              [picweb.utils :refer [ds-opts min-start
+                                    default-page-size ss-valid?
+                                    min-grid-size max-grid-size]]))
 
 ;;-----------------------------------------------------------------------------
 
@@ -36,22 +38,44 @@
 (def ^:private time-index (atom nil))
 (def ^:private tag2id (atom nil))
 
+(def counters (atom {}))
+(def wait-for-it (atom true))
+
+(defn report-stats
+    []
+    (while @wait-for-it
+        (Thread/sleep 1000))
+    (doseq [k (keys @counters)
+            :let [num (first (get @counters k))
+                  total-time (second (get @counters k))]]
+        (println "Function:" k
+                 ", # of calls:" num
+                 ", ms per call:" (/ total-time 1000000.0 num)))
+    (System/exit 0))
+
+(defmacro prof
+    [fname expr]
+    `(let [start# (System/nanoTime)
+           result# ~expr
+           end# (System/nanoTime)]
+         (swap! counters update '~fname (fn [old#] (if old# [(inc (first old#)) (+ (second old#) (- end# start#))] [1 (- end# start#)])))
+         result#))
+
 (defn load-thumbnails
     []
-    (let [tn-data (sql/query ds-opts ["SELECT * FROM thumbnails ORDER BY id ASC"])
-          ;tn-conf (s/conform :thumbnails/db tn-data)
-          m2m-data (sql/query ds-opts ["SELECT * FROM tag_m2m ORDER BY tag_id ASC"])]
-        (doseq [m tn-data
-                :when (not (s/valid? :thumbnails/thumbnail m))]
-            (s/explain :thumbnails/thumbnail m))
-        (reset! time-index (sort-by first (mapv (fn [m] [(:timestr m) (:id m)]) tn-data)))
-        (reset! thumbnails (into (sorted-map) (apply merge (mapv (fn [m] {(:id m) m}) tn-data))))
-        (reset! tag2id (mapv (fn [x] [(:id x) (:tag_id x)]) (sort-by :id m2m-data)))))
+    (prof "load-thumbnails"
+          (let [tn-data (sql/query ds-opts ["SELECT * FROM thumbnails ORDER BY id ASC"])
+                m2m-data (sql/query ds-opts ["SELECT * FROM tag_m2m ORDER BY tag_id ASC"])]
+         (doseq [m tn-data
+                 :when (not (s/valid? :thumbnails/thumbnail m))]
+             (s/explain :thumbnails/thumbnail m))
+         (reset! time-index (sort-by first (mapv (fn [m] [(:timestr m) (:id m)]) tn-data)))
+         (reset! thumbnails (into (sorted-map) (apply merge (mapv (fn [m] {(:id m) m}) tn-data))))
+         (reset! tag2id (mapv (fn [x] [(:id x) (:tag_id x)]) (sort-by :id m2m-data))))))
 
 (defn spy
     [x]
-    (println "SPY:" x)
-    x)
+    (println "SPY:" x))
 
 ;-----------------------------------------------------------------------------
 ; update functions
@@ -74,7 +98,8 @@
     {:pre [(ss-valid? :thumbnails/timestr time-str)
            (ss-valid? target-type target)]
      :post [(ss-valid? (s/nilable nat-int?) %)]}
-    (if (= target :before)
+    (prof "find-idx-by-time"
+          (if (= target :before)
         (loop [idx (dec (count @time-index))]
             (when-let [time-entry (nth @time-index idx nil)]
                 (if (< (compare (first time-entry) time-str) 0)
@@ -86,7 +111,7 @@
                 idx
                 (if (and (= target :after) (> (compare (first time-entry) time-str) 0))
                     idx
-                    (recur (inc idx))))))))
+                    (recur (inc idx)))))))))
 
 ;-----------------------------------------------------------------------------
 
@@ -95,34 +120,43 @@
     {:pre [(ss-valid? :thumbnails/id id)
            (ss-valid? :thumbnails/thumbnail data)]
      :post [(ss-valid? boolean? %)]}
-    (let [res (sql/update! ds-opts :thumbnails data {:id id})]
-        (if (db-ok? res)
-            (swap! thumbnails assoc id data)
-            false)))
+    (prof "update-thumb"
+        (let [res (sql/update! ds-opts :thumbnails data {:id id})]
+         (if (db-ok? res)
+             (swap! thumbnails assoc id data)
+             false))))
 
 (defn update-rating
     [pic-id rating]
     {:pre [(ss-valid? :thumbnails/id pic-id)
            (ss-valid? :thumbnails/rating rating)]
      :post [(ss-valid? boolean? %)]}
-    (jdbc/with-transaction [tx ds-opts]
-     (let [res (sql/update! tx :thumbnails {:rating rating} {:id pic-id})]
-         (if (db-ok? res)
-             (do
-                 (swap! thumbnails assoc-in [pic-id :rating] rating)
-                 true)
-             false))))
+    (prof "update-rating"
+        (jdbc/with-transaction [tx ds-opts]
+                            (let [res (sql/update! tx :thumbnails {:rating rating} {:id pic-id})]
+                                (if (db-ok? res)
+                                    (do
+                                        (swap! thumbnails assoc-in [pic-id :rating] rating)
+                                        true)
+                                    false)))))
 
 (defn delete-thumb
     [id]
     {:pre [(ss-valid? :thumbnails/id id)]
-     :post [ss-valid? (boolean? %)]}
-    (let [res (sql/delete! ds-opts :thumbnails {:id id})]
-        (if (db-ok? res)
-            (let [res2 (sql/delete! ds-opts :tags_m2m {:id id})]
-                (db-ok-0? res2))
-            ; TODO: remove in memory too
-            false)))
+     :post [(ss-valid? boolean? %)]}
+    (prof "delete-thumb"
+          (jdbc/with-transaction [tx ds-opts]
+          (let [res (sql/delete! tx :thumbnails {:id id})]
+         (if (db-ok? res)
+             (let [res2 (sql/delete! tx :tags_m2m {:id id})]
+                 (if-not (db-ok-0? res2)
+                     (.rollback tx)
+                     (do
+                         (swap! thumbnails dissoc id)
+                         (reset! time-index (vec (remove #(= (second %) id) @time-index)))
+                         (reset! tag2id (vec (remove #(= (second %) id) @tag2id)))
+                         true)))
+             false)))))
 
 
 ;;-----------------------------------------------------------------------------
@@ -134,18 +168,20 @@
     (let [ti (nth @time-index idx nil)
           tn (get @thumbnails (second ti) nil)]
         tn))
+
 (defn get-thumbs
     [start-time page-sz]
     {:pre [(ss-valid? :thumbnails/timestr start-time)
            (ss-valid? :thumbnails/page-size page-sz)]
      :post [(ss-valid? sequential? %)]}
-    (let [start-idx (find-idx-by-time start-time :after)
-          stop-idx (if start-idx
-                         (min (+ start-idx page-sz) (count @time-index))
-                         0)
-          rr (range start-idx stop-idx)
-          result (vec (map get-tn rr))]
-        result))
+    (prof "get-thumbs"
+        (let [start-idx (find-idx-by-time start-time :after)
+           stop-idx (if start-idx
+                        (min (+ start-idx page-sz) (count @time-index))
+                        0)
+           rr (range start-idx stop-idx)
+           result (vec (map get-tn rr))]
+         result)))
 
 (defn get-thumb
     [id]
@@ -157,20 +193,22 @@
     [tag-ids]
     {:pre [(ss-valid? (s/coll-of :thumbnails/id :kind set) tag-ids)]
      :post [(ss-valid? (s/coll-of :thumbnails/thumbnail :kind vector) %)]}
-    (->> @tag2id
-         (filter #(contains? tag-ids (second %)))
-         (map #(first %))
-         (set)
-         (mapv get-thumb)))
+    (prof "get-thumbs-by-tags"
+        (->> @tag2id
+          (filter #(contains? tag-ids (second %)))
+          (map #(first %))
+          (set)
+          (mapv get-thumb))))
 
 (defn get-thumbs-by-rating
     [ratings]
     {:pre [(ss-valid? (s/coll-of :thumbnails/rating :kind set) ratings)]
      :post [(ss-valid? (s/coll-of :thumbnails/thumbnail :kind vector) %)]}
-    (->> @thumbnails
-         (vals)
-         (filter #(contains? ratings (:rating %)))
-         (vec)))
+    (prof "get-thumbs-by-rating"
+        (->> @thumbnails
+          (vals)
+          (filter #(contains? ratings (:rating %)))
+          (vec))))
 
 (s/def :thumbnails/tag-set (s/coll-of :thumbnails/id :kind set))
 (s/def :thumbnails/rating-set (s/coll-of (s/int-in 0 6) :kind set))
@@ -180,72 +218,54 @@
     [selected]
     {:pre [(ss-valid? :thumbnails/selection selected)]
      :post [(ss-valid? (s/coll-of :thumbnails/thumbnail :kind vector) %)]}
-    (cond
-        (and (empty? (:tag-set selected)) (empty? (:rating-set selected)))
-            (get-thumbs min-start default-page-size)
-        (empty? (:tag-set selected))
-            (get-thumbs-by-rating (:rating-set selected))
-        (empty? (:rating-set selected))
-            (get-thumbs-by-tags (:tag-set selected))
-        :else (let [by-tags (set (get-thumbs-by-tags (:tag-set selected)))
-                    by-ratings(set (get-thumbs-by-rating (:rating-set selected)))]
-                  (intersection by-tags by-ratings))))
+    (prof "get-filtered-thumbs"
+        (cond
+         (and (empty? (:tag-set selected)) (empty? (:rating-set selected)))
+         (get-thumbs min-start default-page-size)
+         (empty? (:tag-set selected))
+         (get-thumbs-by-rating (:rating-set selected))
+         (empty? (:rating-set selected))
+         (get-thumbs-by-tags (:tag-set selected))
+         :else (let [by-tags (set (get-thumbs-by-tags (:tag-set selected)))
+                     by-ratings (set (get-thumbs-by-rating (:rating-set selected)))]
+                   (intersection by-tags by-ratings)))))
 
 (defn- get-idx-by-id
     [id start end step]
-    (loop [idx start]
-        (let [time-entry (nth @time-index idx nil)]
-            (when time-entry
-                (if (= (second time-entry) id)
-                    (if (= idx end)
-                        nil
-                        (get @thumbnails (second (nth @time-index (step idx)))))
-                    (recur (step idx)))))))
+    (prof "get-idx-by-id"
+        (loop [idx start]
+         (let [time-entry (nth @time-index idx nil)]
+             (when time-entry
+                 (if (= (second time-entry) id)
+                     (if (= idx end)
+                         nil
+                         (get @thumbnails (second (nth @time-index (step idx)))))
+                     (recur (step idx))))))))
 
 (defn get-prev-thumb
     [id]
     {:pre [(ss-valid? :thumbnails/id id)]
      :post [(ss-valid? (s/nilable :thumbnails/thumbnail) %)]}
     (get-idx-by-id id (dec (count @time-index)) 0 dec))
-    ;(loop [idx (dec (count @time-index))]
-    ;    (let [time-entry (nth @time-index idx nil)]
-    ;        (when time-entry
-    ;            (if (= (second time-entry) id)
-    ;                (if (= idx 0)
-    ;                    nil
-    ;                    (get @thumbnails (second (nth @time-index (dec idx)))))
-    ;                (recur (dec idx)))))))
 
 (defn get-next-thumb
     [id]
     {:pre [(ss-valid? :thumbnails/id id)]
      :post [(ss-valid? (s/nilable :thumbnails/thumbnail) %)]}
     (get-idx-by-id id 0 (dec (count @time-index)) inc));
-    ;(loop [idx 0]
-    ;    (let [time-entry (nth @time-index idx nil)]
-    ;        (when time-entry
-    ;            (if (= (second time-entry) id)
-    ;                (if (= idx (dec (count @time-index)))
-    ;                    nil
-    ;                    (get @thumbnails (second (nth @time-index (inc idx)))))
-    ;                (recur (inc idx)))))))
 
 (defn get-nth-thumb
     [num]
     {:pre [(ss-valid? nat-int? num)]
      :post [(ss-valid? (s/nilable :thumbnails/thumbnail) %)]}
-    (when-let [res (nth @time-index num nil)]
-        (get @thumbnails (second res) nil)))
+    (prof "get-nth-thumb"
+        (when-let [res (nth @time-index num nil)]
+         (get @thumbnails (second res) nil))))
 
 (defn get-num-thumbs
     []
     {:post [(integer? %)]}
     (count @thumbnails))
-
-(defn get-all-thumb-ids
-    []
-    {:post [(sequential? %)]}
-    (keys @thumbnails))
 
 (defn get-all-thumbs
     []
@@ -260,11 +280,12 @@
            (ss-valid? :thumbnails/page-size page-sz)
            (ss-valid? #{:after :before} direction)]
      :post [(ss-valid? :thumbnails/timestr %)]}
-    (if-let [start-idx (find-idx-by-time start-time direction)]
-        (first (nth @time-index (if (= direction :before)
-                                    (max 0 (- start-idx page-sz))
-                                    (min (count @time-index) (+ start-idx page-sz)))))
-        start-time))
+    (prof "by-page"
+        (if-let [start-idx (find-idx-by-time start-time direction)]
+         (first (nth @time-index (if (= direction :before)
+                                     (max 0 (- start-idx page-sz))
+                                     (min (count @time-index) (+ start-idx page-sz)))))
+         start-time)))
 
 (defn get-page-up
     [start-time page-sz]

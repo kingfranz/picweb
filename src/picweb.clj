@@ -5,7 +5,8 @@
               [org.httpkit.server :refer [run-server]]
               [picweb.html :refer [mk-tn-name]]
               [picweb.routes :refer [app-routes]]
-              [picweb.thumbnails :refer [delete-thumb get-all-thumbs load-thumbnails]]
+              [picweb.thumbnails :refer [delete-thumb get-all-thumbs
+                                         load-thumbnails report-stats wait-for-it]]
               [ring.middleware.cookies :refer [wrap-cookies]]
               [ring.middleware.keyword-params :refer [wrap-keyword-params]]
               [ring.middleware.params :refer [wrap-params]]
@@ -96,6 +97,12 @@
             )
         (do
             (println "Starting PicWeb application...")
+            (.start (Thread. #(report-stats)))
             (load-thumbnails)
             (run-server app {:join? false :port 4559})))
-    (println "PicWeb is running on port 4559!"))
+    (println "PicWeb is running on port 4559!")
+    (println "Press Enter to stop.")
+    (read-line)
+    (println "Thank you! Goodbye.")
+    (reset! wait-for-it false)
+    )
