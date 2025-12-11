@@ -1,0 +1,27 @@
+# Clojure
+.cpcache/
+.nrepl-port
+.nrepl-history
+target/
+out/
+.lein-*
+.calva/
+.lsp/
+
+# clj-kondo
+.clj-kondo/.cache/
+
+# IDE
+.idea/
+*.iml
+
+# SQLite
+*.sqlite3
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Code Quality
+qodana.sarif.json
