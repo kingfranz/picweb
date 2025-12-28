@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="uberjar" type="ClojureScriptRunConfiguration" factoryName="Clojure Script" singleton="true">
+    <option name="configVersion" value="1" />
+    <option name="execution" value="DEPS" />
+    <module name="picweb" />
+    <option name="options" value="-T:build uber" />
+    <option name="profiles" />
+    <option name="type" value="OPTIONS" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <method v="2" />
+  </configuration>
+</component>
