@@ -36,7 +36,7 @@
             (re-matches #"^\d{8}$" dt) (str (subs dt 0 4) "-" (subs dt 4 6) "-" (subs dt 6 8) "T00:00:00")
             :else (do
                       (println "Unrecognized time format:" dt)
-                      dt))))
+                      "1970-01-01T00:00:00"))))
 
 (defn insert
     [table data]
